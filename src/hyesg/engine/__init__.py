@@ -32,6 +32,16 @@ from hyesg.engine.antithetic import (
     apply_antithetic_uniform,
     generate_antithetic_shocks,
 )
+from hyesg.engine.output import (
+    SimulationResult,
+    combine_regime_results,
+    extract_outputs,
+)
+from hyesg.engine.simulator import (
+    Simulator,
+    build_time_grid,
+    topological_sort,
+)
 
 __all__ = [
     "antithetic_combine",
@@ -41,9 +51,12 @@ __all__ = [
     "apply_copula",
     "apply_copula_antithetic",
     "apply_copula_antithetic_csharp",
+    "build_time_grid",
     "cholesky_factor",
+    "combine_regime_results",
     "correlate_shocks",
     "create_rng_keys",
+    "extract_outputs",
     "generate_antithetic_shocks",
     "gaussian_copula",
     "gaussian_copula_inverse",
@@ -51,9 +64,12 @@ __all__ = [
     "generate_trial_shocks",
     "merge_copula_shocks",
     "nearest_psd",
+    "Simulator",
+    "SimulationResult",
     "split_copula_shocks",
     "split_shocks",
     "student_t_copula",
     "student_t_copula_inverse",
+    "topological_sort",
     "validate_correlation_matrix",
 ]
