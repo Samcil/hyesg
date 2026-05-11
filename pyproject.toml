@@ -1,0 +1,55 @@
+[project]
+name = "hyesg"
+version = "0.1.0"
+description = "Python/JAX Economic Scenario Generator"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Hymans Robertson"}]
+dependencies = [
+    "jax>=0.4.30",
+    "jaxlib>=0.4.30",
+    "jaxtyping>=0.2.28",
+    "pydantic>=2.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "hypothesis>=6.0",
+    "ruff>=0.4.0",
+    "mypy>=1.0",
+]
+io = [
+    "pyarrow>=14.0",
+    "h5py>=3.10",
+    "xarray>=2024.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hyesg"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "TCH"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["hyesg"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q --tb=short"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
