@@ -7,6 +7,7 @@ type-safe registry.
 from __future__ import annotations
 
 _MODEL_REGISTRY: dict[str, type] = {}
+_REGISTERED_MODULES: set[str] = set()
 
 
 def register_model(name: str):
@@ -32,6 +33,7 @@ def register_model(name: str):
                 return cls  # idempotent
             raise ValueError(f"Model '{name}' already registered")
         _MODEL_REGISTRY[name] = cls
+        _REGISTERED_MODULES.add(cls.__module__)
         return cls
 
     return decorator
@@ -40,23 +42,19 @@ def register_model(name: str):
 def _ensure_populated() -> None:
     """Lazily populate registry if it was cleared (e.g. by test teardown).
 
-    Works by reloading model modules that are already in ``sys.modules``
-    so that ``@register_model`` decorators re-fire.
+    Only reloads modules that previously registered a model via
+    ``@register_model``, avoiding side-effects on unrelated modules
+    (e.g. dataclass re-creation breaking ``isinstance`` checks).
     """
     if _MODEL_REGISTRY:
         return
     import importlib
     import sys
 
-    # Reload concrete model modules already in the import cache
-    model_mods = [
-        mod_name
-        for mod_name in list(sys.modules)
-        if mod_name.startswith("hyesg.models.")
-        and not mod_name.endswith("__init__")
-    ]
-    for mod_name in model_mods:
-        importlib.reload(sys.modules[mod_name])
+    # Only reload modules that actually registered models
+    for mod_name in list(_REGISTERED_MODULES):
+        if mod_name in sys.modules:
+            importlib.reload(sys.modules[mod_name])
 
     # If nothing was in sys.modules yet, import the models package
     if not _MODEL_REGISTRY:
