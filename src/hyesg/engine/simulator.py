@@ -29,6 +29,50 @@ from hyesg.engine.output import SimulationResult, combine_regime_results, extrac
 from hyesg.engine.rng import create_rng_keys
 
 
+def _resolve_params(model_cls: type, params: Any) -> Any:
+    """Convert *params* from a plain dict to the model's expected type.
+
+    Inspects the ``params`` annotation on *model_cls.__init__*.  If it
+    resolves to a Pydantic ``BaseModel`` subclass and *params* is a dict,
+    the dict is converted via ``model_validate``.  Otherwise *params* is
+    returned as-is.
+    """
+    if not isinstance(params, dict) or not params:
+        return params
+
+    import inspect
+    import sys
+
+    sig = inspect.signature(model_cls.__init__)
+    p = sig.parameters.get("params")
+    if p is None or p.annotation is inspect.Parameter.empty:
+        return params
+
+    ann = p.annotation
+    # With `from __future__ import annotations`, annotation is a string.
+    # Resolve it using the model class's module globals *plus* the params
+    # module (annotations may reference TYPE_CHECKING-only imports).
+    if isinstance(ann, str):
+        module = sys.modules.get(model_cls.__module__, None)
+        ns: dict[str, Any] = dict(getattr(module, "__dict__", {}))
+        # Inject the params module so TYPE_CHECKING imports are resolvable
+        try:
+            from hyesg.config import params as _params_mod
+
+            ns.update(vars(_params_mod))
+        except ImportError:
+            pass
+        try:
+            ann = eval(ann, ns)  # noqa: S307
+        except Exception:  # noqa: BLE001
+            return params
+
+    if isinstance(ann, type) and hasattr(ann, "model_validate"):
+        return ann.model_validate(params)
+
+    return params
+
+
 # ---------------------------------------------------------------------------
 # Topological sort
 # ---------------------------------------------------------------------------
@@ -161,13 +205,18 @@ class Simulator:
     def _build_models(self) -> dict[str, Any]:
         """Instantiate models from config using the registry.
 
+        When ``ModelConfig.params`` is a dict, the constructor's ``params``
+        type-hint is inspected and, if it is a Pydantic ``BaseModel``
+        subclass, the dict is automatically converted via ``model_validate``.
+
         Returns:
             Dict mapping model name to instantiated model object.
         """
         models: dict[str, Any] = {}
         for model_cfg in self._config.models:
             model_cls = get_model(model_cfg.type)
-            model = model_cls(params=model_cfg.params, name=model_cfg.name)
+            params = _resolve_params(model_cls, model_cfg.params)
+            model = model_cls(params=params, name=model_cfg.name)
             models[model_cfg.name] = model
         return models
 
