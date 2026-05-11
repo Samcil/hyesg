@@ -149,9 +149,17 @@ def cir_forward_rate(
     mu: float,
     sigma: float,
 ) -> Float[Array, ...]:
-    """CIR instantaneous forward rate f(t,T) = -∂/∂T ln P(t,T).
+    """CIR instantaneous forward rate f(0,τ) = -d/dτ ln P(0,τ).
 
-    Computed via numerical differentiation of -ln P.
+    Computed analytically: f(τ,x) = B'(τ)·x - d/dτ ln A(τ)
+
+    where:
+        γ = √(α² + 2σ²)
+        denom = (α+γ)(e^{γτ}-1) + 2γ
+        B'(τ) = [2γe^{γτ}·denom - 2(e^{γτ}-1)·(α+γ)γe^{γτ}] / denom²
+        d/dτ ln A(τ) = (2αμ/σ²) · [(α+γ)/2 - (α+γ)γe^{γτ}/denom]
+
+    At τ=0: B'(0)=1 and d/dτ ln A(0)=0, so f(0,x)=x. ✓
 
     Args:
         tau: Time to maturity T-t.
@@ -165,12 +173,26 @@ def cir_forward_rate(
     """
     tau = jnp.asarray(tau, dtype=jnp.float64)
     x = jnp.asarray(x, dtype=jnp.float64)
-    eps = 1e-6
-    ln_p_plus = jnp.log(cir_zcb_price(tau + eps, x, alpha, mu, sigma))
-    ln_p_minus = jnp.log(
-        cir_zcb_price(jnp.maximum(tau - eps, 0.0), x, alpha, mu, sigma)
+    gamma = cir_h(alpha, sigma)
+
+    exp_gt = jnp.exp(gamma * tau)
+    denom = (alpha + gamma) * (exp_gt - 1.0) + 2.0 * gamma
+
+    # B'(τ) via quotient rule on B(τ) = 2(e^{γτ}-1)/denom
+    denom_prime = (alpha + gamma) * gamma * exp_gt
+    b_prime = (2.0 * gamma * exp_gt * denom - 2.0 * (exp_gt - 1.0) * denom_prime) / (
+        denom * denom
     )
-    return -(ln_p_plus - ln_p_minus) / (2.0 * eps)
+
+    # d/dτ ln A(τ) = (2αμ/σ²) · [(α+γ)/2 - (α+γ)γe^{γτ}/denom]
+    feller = 2.0 * alpha * mu / jnp.maximum(sigma**2, 1e-30)
+    d_ln_a = feller * ((alpha + gamma) / 2.0 - (alpha + gamma) * gamma * exp_gt / denom)
+
+    # Zero-vol limit: f(τ,x) = μ + (x-μ)e^{-ατ} (Vasicek forward)
+    zero_vol_fwd = mu + (x - mu) * jnp.exp(-alpha * tau)
+
+    standard_fwd = b_prime * x - d_ln_a
+    return jnp.where(sigma < 1e-7, zero_vol_fwd, standard_fwd)
 
 
 def cir_expectation(
@@ -254,9 +276,10 @@ def cir_bond_option(
     Returns:
         Option price (placeholder returning zeros).
     """
-    x = jnp.asarray(x, dtype=jnp.float64)
     # Full implementation requires non-central chi-squared CDF
-    return jnp.zeros_like(x)
+    raise NotImplementedError(
+        "CIR bond option pricing (Jamshidian) not yet implemented"
+    )
 
 
 def cir_phi_from_curves(
@@ -314,7 +337,7 @@ def cir_integral_phi(
     Returns:
         ∫ₜᵀ φ(s)ds.
     """
-    n_points = 50
+    n_points = max(200, int(50 * (T - t)) + 1)
     s_values = jnp.linspace(t, T, n_points)
 
     phi_values = jax.vmap(

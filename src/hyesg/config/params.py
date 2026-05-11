@@ -11,7 +11,7 @@ import warnings
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class CopulaType(StrEnum):
@@ -53,6 +53,8 @@ class CIRParams(BaseModel):
         strict_feller: If True, raise on Feller violation.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     alpha: float = Field(gt=0)
     mu: float = Field(ge=0)
     sigma: float = Field(ge=0)
@@ -91,6 +93,8 @@ class OUParams(BaseModel):
         model_type: One of "vasicek", "g1pp", "g2pp".
     """
 
+    model_config = ConfigDict(frozen=True)
+
     alpha: float = Field(gt=0)
     mu: float = 0.0
     sigma: float = Field(ge=0)
@@ -117,6 +121,8 @@ class GBMParams(BaseModel):
         initial_value: Starting value (must be > 0).
     """
 
+    model_config = ConfigDict(frozen=True)
+
     sigma: float = Field(ge=0)
     initial_value: float = Field(gt=0)
 
@@ -128,6 +134,8 @@ class PhiConfig(BaseModel):
         source: How to obtain the shift function.
         curve_params: Extra params for calibrated curve source.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     source: Literal["analytic", "calibrated_curve"] = "analytic"
     curve_params: dict[str, float] | None = None

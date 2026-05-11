@@ -99,7 +99,7 @@ def black_implied_vol(
         tau: Time to expiry.
         df: Discount factor.
         is_call: True for call, False for put.
-        tol: Convergence tolerance (unused, kept for API).
+        tol: Convergence tolerance for price error.
         max_iter: Maximum iterations.
 
     Returns:
@@ -112,9 +112,10 @@ def black_implied_vol(
     # Initial guess: Brenner-Subrahmanyam approximation
     sigma = jnp.sqrt(2.0 * jnp.pi / tau) * price / (df * F)
     sigma = jnp.clip(sigma, 0.001, 5.0)
+    diff = jnp.asarray(jnp.inf, dtype=jnp.float64)
 
     def body_fn(carry: tuple) -> tuple:
-        sigma, i = carry
+        sigma, diff, i = carry
         sqrt_tau = jnp.sqrt(tau)
         d1 = (jnp.log(F / K) + 0.5 * sigma**2 * tau) / (sigma * sqrt_tau)
         d2 = d1 - sigma * sqrt_tau
@@ -126,15 +127,16 @@ def black_implied_vol(
         )
 
         vega = df * F * sqrt_tau * norm.pdf(d1)
-        sigma_new = sigma - (model_price - price) / jnp.maximum(vega, 1e-30)
+        diff_new = model_price - price
+        sigma_new = sigma - diff_new / jnp.maximum(vega, 1e-30)
         sigma_new = jnp.clip(sigma_new, 1e-6, 10.0)
-        return sigma_new, i + 1
+        return sigma_new, diff_new, i + 1
 
     def cond_fn(carry: tuple) -> bool:
-        _, i = carry
-        return i < max_iter
+        _, diff, i = carry
+        return (i < max_iter) & (jnp.abs(diff) > tol)
 
-    sigma, _ = jax.lax.while_loop(cond_fn, body_fn, (sigma, 0))
+    sigma, _, _ = jax.lax.while_loop(cond_fn, body_fn, (sigma, diff, 0))
     return sigma
 
 
@@ -261,7 +263,7 @@ def bond_yield(
         cashflows: Array of cashflow amounts.
         times: Array of cashflow times.
         max_iter: Maximum Newton-Raphson iterations.
-        tol: Convergence tolerance (unused, kept for API).
+        tol: Convergence tolerance for price error.
 
     Returns:
         Continuously compounded yield to maturity.
@@ -270,20 +272,22 @@ def bond_yield(
     times = jnp.asarray(times, dtype=jnp.float64)
     price = jnp.asarray(price, dtype=jnp.float64)
     y = jnp.asarray(0.05, dtype=jnp.float64)
+    diff = jnp.asarray(jnp.inf, dtype=jnp.float64)
 
     def body_fn(carry: tuple) -> tuple:
-        y, i = carry
+        y, diff, i = carry
         discounts = jnp.exp(-y * times)
         pv = jnp.sum(cashflows * discounts)
         dpv = -jnp.sum(cashflows * times * discounts)
-        y_new = y - (pv - price) / dpv
-        return y_new, i + 1
+        diff_new = pv - price
+        y_new = y - diff_new / dpv
+        return y_new, diff_new, i + 1
 
     def cond_fn(carry: tuple) -> bool:
-        _, i = carry
-        return i < max_iter
+        _, diff, i = carry
+        return (i < max_iter) & (jnp.abs(diff) > tol)
 
-    y, _ = jax.lax.while_loop(cond_fn, body_fn, (y, 0))
+    y, _, _ = jax.lax.while_loop(cond_fn, body_fn, (y, diff, 0))
     return y
 
 

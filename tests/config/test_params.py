@@ -174,3 +174,26 @@ class TestEnums:
     def test_recovery_values(self) -> None:
         assert RecoveryType.FACE == "face_value"
         assert RecoveryType.NONE == "no_recovery"
+
+
+class TestFrozenModels:
+    """Test that parameter models are immutable."""
+
+    def test_cir_params_frozen(self) -> None:
+        p = CIRParams(alpha=0.1, mu=0.03, sigma=0.05, initial_value=0.02)
+        with pytest.raises(Exception):  # noqa: B017
+            p.alpha = 0.5  # type: ignore[misc]
+
+    def test_ou_params_frozen(self) -> None:
+        from hyesg.config.params import OUParams
+
+        p = OUParams(alpha=0.1, mu=0.0, sigma=0.05, initial_value=0.0)
+        with pytest.raises(Exception):  # noqa: B017
+            p.sigma = 1.0  # type: ignore[misc]
+
+    def test_gbm_params_frozen(self) -> None:
+        from hyesg.config.params import GBMParams
+
+        p = GBMParams(sigma=0.2, initial_value=100.0)
+        with pytest.raises(Exception):  # noqa: B017
+            p.sigma = 0.5  # type: ignore[misc]

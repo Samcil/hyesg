@@ -187,3 +187,35 @@ class TestChangeCompounding:
         # r_semi = (sqrt(1.10) - 1) / 0.5
         expected = (math.sqrt(1.10) - 1.0) / 0.5
         assert r_semi == pytest.approx(expected)
+
+
+class TestTransformAtZero:
+    """Test that transform functions handle t=0 without division by zero."""
+
+    def test_forward_to_spot_at_zero(self) -> None:
+        """forward_to_spot(fwd).evaluate(0) should return fwd(0)."""
+        fwd = ConstantCurve(0.05)
+        spot = forward_to_spot(fwd)
+        assert spot.evaluate(0.0) == pytest.approx(0.05, abs=1e-12)
+
+    def test_forward_to_spot_at_zero_nelson_siegel(self) -> None:
+        """forward_to_spot at t=0 for Nelson-Siegel curve."""
+        ns = NelsonSiegelCurve(beta0=0.04, beta1=-0.01, beta2=0.02, tau=2.0)
+        spot = forward_to_spot(ns)
+        expected = ns.evaluate(0.0)
+        assert spot.evaluate(0.0) == pytest.approx(expected, abs=1e-6)
+
+    def test_zcbp_to_spot_at_zero(self) -> None:
+        """zcbp_to_spot(P).evaluate(0) should be finite (forward rate at 0)."""
+        fwd = ConstantCurve(0.05)
+        zcbp = forward_to_zcbp(fwd)
+        spot = zcbp_to_spot(zcbp)
+        # At t=0, P(0)=1, so -ln(1)/0 = 0/0. Should return f(0)=0.05.
+        assert spot.evaluate(0.0) == pytest.approx(0.05, abs=1e-4)
+
+    def test_inverse_zcbp_to_spot_at_zero(self) -> None:
+        """inverse_zcbp_to_spot at t=0 should be finite."""
+        fwd = ConstantCurve(0.05)
+        inv = forward_to_inverse_zcbp(fwd)
+        spot = inverse_zcbp_to_spot(inv)
+        assert spot.evaluate(0.0) == pytest.approx(0.05, abs=1e-4)

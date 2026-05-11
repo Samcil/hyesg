@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 import jax.numpy as jnp
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from hyesg.config.params import CopulaType, PhiConfig  # noqa: TC001
 
@@ -26,6 +26,8 @@ class ModelConfig(BaseModel):
         outputs: Output names to extract from this model.
         output_maturities: Maturities for term-structure outputs.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     type: str
     name: str
@@ -44,6 +46,8 @@ class CorrelationEntry(BaseModel):
         shock_b: Name of the second shock.
         value: Correlation coefficient in [-1, 1].
     """
+
+    model_config = ConfigDict(frozen=True)
 
     shock_a: str
     shock_b: str
@@ -66,6 +70,8 @@ class RegimeConfig(BaseModel):
         copula_df: Degrees of freedom for Student-t copula.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     name: str
     n_trials: int = Field(default=1667, gt=0)
     seed: int = 27
@@ -87,6 +93,8 @@ class TimeGridConfig(BaseModel):
         frequency: Time step frequency.
         custom_times: Custom time points (overrides frequency).
     """
+
+    model_config = ConfigDict(frozen=True)
 
     start_year: float = 0.0
     end_year: float = 100.0
@@ -154,6 +162,8 @@ class PostProcessorConfig(BaseModel):
         params: Processor-specific parameters.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     type: Literal["sabr", "lsmc", "equilibrium_swap_rate"]
     params: dict[str, Any] = Field(default_factory=dict)
 
@@ -171,6 +181,8 @@ class SimulationConfig(BaseModel):
         post_processors: Post-processing steps.
         output_models: Names of models to include in output.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     name: str
     description: str = ""

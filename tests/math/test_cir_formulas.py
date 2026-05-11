@@ -205,6 +205,36 @@ class TestCirForwardRate:
             f = cir_forward_rate(tau, X0, ALPHA, MU, SIGMA)
             assert float(f) > 0.0
 
+    def test_at_tau_zero(self) -> None:
+        """f(0, x) should equal x (analytic identity)."""
+        for x in [0.01, 0.03, 0.05, 0.10]:
+            f = cir_forward_rate(0.0, x, ALPHA, MU, SIGMA)
+            assert float(f) == pytest.approx(x, abs=1e-12)
+
+    def test_long_run_limit(self) -> None:
+        """Forward rate converges to a long-run value as τ→∞."""
+        f_30 = float(cir_forward_rate(30.0, X0, ALPHA, MU, SIGMA))
+        f_50 = float(cir_forward_rate(50.0, X0, ALPHA, MU, SIGMA))
+        # Should converge — successive values close together
+        assert abs(f_30 - f_50) < 0.001
+
+    def test_agrees_with_numerical_derivative(self) -> None:
+        """Analytic result should match numerical -d/dτ ln P."""
+        tau = 5.0
+        eps = 1e-6
+        ln_p_plus = float(jnp.log(cir_zcb_price(tau + eps, X0, ALPHA, MU, SIGMA)))
+        ln_p_minus = float(jnp.log(cir_zcb_price(tau - eps, X0, ALPHA, MU, SIGMA)))
+        numerical = -(ln_p_plus - ln_p_minus) / (2.0 * eps)
+        analytic = float(cir_forward_rate(tau, X0, ALPHA, MU, SIGMA))
+        assert analytic == pytest.approx(numerical, rel=1e-6)
+
+    def test_bond_option_not_implemented(self) -> None:
+        """cir_bond_option should raise NotImplementedError."""
+        from hyesg.math.cir_formulas import cir_bond_option
+
+        with pytest.raises(NotImplementedError, match="not yet implemented"):
+            cir_bond_option(0.0, 1.0, 2.0, 0.95, X0, ALPHA, MU, SIGMA, True)
+
 
 class TestCirPhiFromCurves:
     """Tests for CIR++ phi shift."""

@@ -19,10 +19,51 @@ from hyesg.math.curves import (
 )
 
 
+class _GuardedForwardToSpot(ParametricCurve):
+    """Spot rate from forward: spot(t) = (1/t)∫₀ᵗ f(u)du, spot(0) = f(0)."""
+
+    def __init__(self, fwd: ParametricCurve) -> None:
+        self._fwd = fwd
+        self._integrated = fwd.integrate_curve()
+
+    def evaluate(self, x: float) -> float:
+        if abs(x) < 1e-12:
+            return self._fwd.evaluate(0.0)
+        return self._integrated.evaluate(x) / x
+
+
+class _GuardedZcbpToSpot(ParametricCurve):
+    """Spot rate from ZCB prices: spot(t) = -ln(P(t))/t, spot(0) = f(0)."""
+
+    def __init__(self, zcbp: ParametricCurve) -> None:
+        self._zcbp = zcbp
+        self._neg_log = -(zcbp.log())
+
+    def evaluate(self, x: float) -> float:
+        if abs(x) < 1e-12:
+            # spot(0) = lim_{t→0} -ln(P(t))/t = f(0)
+            # Use numerical derivative of -ln(P) at 0
+            return self._neg_log.derivative(0.0)
+        return self._neg_log.evaluate(x) / x
+
+
+class _GuardedInvZcbpToSpot(ParametricCurve):
+    """Spot rate from accumulation: spot(t) = ln(1/P(t))/t, spot(0) = f(0)."""
+
+    def __init__(self, inv: ParametricCurve) -> None:
+        self._inv = inv
+        self._log_inv = inv.log()
+
+    def evaluate(self, x: float) -> float:
+        if abs(x) < 1e-12:
+            return self._log_inv.derivative(0.0)
+        return self._log_inv.evaluate(x) / x
+
+
 def forward_to_spot(fwd: ParametricCurve) -> ParametricCurve:
     """Convert forward rate curve to spot rate curve.
 
-    spot(t) = (1/t) ∫₀ᵗ f(u)du
+    spot(t) = (1/t) ∫₀ᵗ f(u)du, with spot(0) = f(0) by L'Hôpital.
 
     Args:
         fwd: Forward rate curve.
@@ -30,7 +71,7 @@ def forward_to_spot(fwd: ParametricCurve) -> ParametricCurve:
     Returns:
         Spot rate curve.
     """
-    return fwd.integrate_curve() / LinearCurve()
+    return _GuardedForwardToSpot(fwd)
 
 
 def forward_to_zcbp(fwd: ParametricCurve) -> ParametricCurve:
@@ -106,7 +147,7 @@ def zcbp_to_forward(zcbp: ParametricCurve) -> ParametricCurve:
 def zcbp_to_spot(zcbp: ParametricCurve) -> ParametricCurve:
     """Convert ZCB price curve to spot rate curve.
 
-    spot(t) = -ln P(t) / t
+    spot(t) = -ln P(t) / t, with spot(0) = f(0) by L'Hôpital.
 
     Args:
         zcbp: Zero-coupon bond price curve.
@@ -114,7 +155,7 @@ def zcbp_to_spot(zcbp: ParametricCurve) -> ParametricCurve:
     Returns:
         Spot rate curve.
     """
-    return -(zcbp.log()) / LinearCurve()
+    return _GuardedZcbpToSpot(zcbp)
 
 
 def inverse_zcbp_to_forward(inv: ParametricCurve) -> ParametricCurve:
@@ -134,7 +175,7 @@ def inverse_zcbp_to_forward(inv: ParametricCurve) -> ParametricCurve:
 def inverse_zcbp_to_spot(inv: ParametricCurve) -> ParametricCurve:
     """Convert accumulation factor to spot rate curve.
 
-    spot(t) = ln(1/P(t)) / t
+    spot(t) = ln(1/P(t)) / t, with spot(0) = f(0) by L'Hôpital.
 
     Args:
         inv: Inverse ZCB price (accumulation factor) curve.
@@ -142,7 +183,7 @@ def inverse_zcbp_to_spot(inv: ParametricCurve) -> ParametricCurve:
     Returns:
         Spot rate curve.
     """
-    return inv.log() / LinearCurve()
+    return _GuardedInvZcbpToSpot(inv)
 
 
 def change_compounding(
