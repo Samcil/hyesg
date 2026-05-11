@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import jax
 import jax.numpy as jnp
 
 from hyesg.core.registry import register_model
@@ -271,7 +272,9 @@ class Credit:
         if self._market_curve is None:
             return jnp.array(0.0, dtype=jnp.float64)
         t_arr = jnp.asarray(t, dtype=jnp.float64)
-        f_market = self._market_curve.evaluate(float(t_arr))
+        f_market = jnp.asarray(
+            self._market_curve.evaluate(t_arr), dtype=jnp.float64
+        )
         f_cir = cir_forward_rate(
             t_arr,
             jnp.array(self._params.initial_intensity, dtype=jnp.float64),
@@ -279,7 +282,7 @@ class Credit:
             self._params.mu,
             self._params.sigma,
         )
-        return jnp.asarray(f_market, dtype=jnp.float64) - f_cir
+        return f_market - f_cir
 
     def _integrate_psi(self, t: float, T: float) -> jnp.ndarray:
         """Numerical integral of ψ(s) from t to T.
@@ -293,10 +296,7 @@ class Credit:
         """
         if self._market_curve is None:
             return jnp.array(0.0, dtype=jnp.float64)
-        n_points = max(100, int(50 * (T - t)) + 1)
+        n_points = 100
         s_values = jnp.linspace(t, T, n_points)
-        psi_values = jnp.array(
-            [float(self._psi(float(s))) for s in s_values],
-            dtype=jnp.float64,
-        )
+        psi_values = jax.vmap(self._psi)(s_values)
         return jnp.trapezoid(psi_values, s_values)

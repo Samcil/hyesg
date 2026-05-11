@@ -20,7 +20,7 @@ ZCB pricing uses the FROM TIME 0 formulation:
 
 from __future__ import annotations
 
-import warnings
+
 from typing import TYPE_CHECKING, Any
 
 import jax
@@ -200,16 +200,7 @@ class CIR2PlusPlus:
             self._params2.initial_value,
         )
         phi_val = jnp.asarray(phi_val, dtype=jnp.float64)
-
-        phi_float = float(phi_val)
-        if phi_float < -1e-4:
-            warnings.warn(
-                f"CIR2++ phi({float(t):.4f}) = {phi_float:.6f} is significantly "
-                f"negative. Market curve may be inconsistent with CIR parameters.",
-                UserWarning,
-                stacklevel=2,
-            )
-        # Clamp small negative values to zero
+        # Clamp small negative values to zero (pure JAX, JIT-safe)
         return jnp.maximum(phi_val, 0.0)
 
     def _forward_curve_fn(self, t: float) -> float:

@@ -163,14 +163,13 @@ class TestCIRPPPhi:
         phi_0 = float(model._phi(0.0))
         assert phi_0 >= 0.0
 
-    def test_phi_warning_on_large_negative(self) -> None:
-        """Phi should warn when significantly negative."""
-        # Market rate well below CIR forward
+    def test_phi_clamps_negative_to_zero(self) -> None:
+        """Phi should clamp negative values to zero (JIT-safe)."""
         very_low_curve = FlatForwardCurve(0.001)
         params = CIRParams(alpha=ALPHA, mu=MU, sigma=SIGMA, initial_value=X0)
-        with pytest.warns(UserWarning, match="significantly negative"):
-            model = CIRPlusPlus(params, very_low_curve)
-            _ = model._phi(0.0)
+        model = CIRPlusPlus(params, very_low_curve)
+        phi_val = model._phi(0.0)
+        assert float(phi_val) >= 0.0
 
 
 class TestCIRPPStep:

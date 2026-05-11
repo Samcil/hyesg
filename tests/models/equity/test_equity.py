@@ -74,7 +74,7 @@ class TestEquityStep:
         dt = 1.0 / 12.0
         dz = jnp.array(0.5, dtype=jnp.float64)
         shocks = jnp.array([dz])
-        deps: dict = {"short_rate": jnp.array(0.05, dtype=jnp.float64)}
+        deps: dict = {"rates": {"short_rate": jnp.array(0.05, dtype=jnp.float64)}}
 
         new_state, outputs = model.step(state, 0.0, dt, shocks, deps)
 
@@ -95,7 +95,7 @@ class TestEquityStep:
         state = model.init_state()
         dt = 0.25
         shocks = jnp.array([1.5])  # should not matter with σ=0
-        deps: dict = {"short_rate": jnp.array(0.05, dtype=jnp.float64)}
+        deps: dict = {"rates": {"short_rate": jnp.array(0.05, dtype=jnp.float64)}}
 
         new_state, _ = model.step(state, 0.0, dt, shocks, deps)
 
@@ -132,7 +132,7 @@ class TestEquityStep:
             state = model.init_state()
             for step_i in range(n_steps):
                 shocks = jnp.array([all_shocks[trial, step_i]])
-                deps: dict = {"short_rate": jnp.array(r, dtype=jnp.float64)}
+                deps: dict = {"rates": {"short_rate": jnp.array(r, dtype=jnp.float64)}}
                 state, _ = model.step(state, step_i * dt, dt, shocks, deps)
             final_levels.append(float(state.level))
 

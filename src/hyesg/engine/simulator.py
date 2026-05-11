@@ -247,12 +247,10 @@ class Simulator:
                     correlated, (start,), (end - start,)
                 )
 
-                # Gather dependency outputs
+                # Gather dependency outputs (nested by dep name)
                 deps: dict[str, Any] = {}
                 for dep_name in model_deps.get(name, []):
-                    # Merge the dep's outputs so the model can access them
-                    dep_outputs = step_outputs.get(dep_name, {})
-                    deps.update(dep_outputs)
+                    deps[dep_name] = step_outputs.get(dep_name, {})
 
                 state = carry["states"][name]
                 new_state, outputs = model.step(state, t, dt, model_shocks, deps)

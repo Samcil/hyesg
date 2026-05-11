@@ -101,8 +101,12 @@ class Equity:
         """
         dz = shocks[0]
 
-        # Drift from domestic short rate dependency
-        r = deps.get("short_rate", jnp.array(0.0, dtype=jnp.float64))
+        # Drift from domestic short rate dependency (nested deps format)
+        r = jnp.array(0.0, dtype=jnp.float64)
+        for dep_out in deps.values():
+            if isinstance(dep_out, dict) and "short_rate" in dep_out:
+                r = dep_out["short_rate"]
+                break
         q = jnp.array(self._dividend_yield, dtype=jnp.float64)
         sigma = self._params.sigma
 
