@@ -14,6 +14,11 @@ from hyesg.math.cir_formulas import (
     cir_variance,
     cir_zcb_price,
 )
+from hyesg.math.gaussian_helpers import (
+    b_func,
+    b_over_dt,
+    variance_integral_ou,
+)
 from hyesg.math.pricing import (
     black_call,
     black_implied_vol,
@@ -49,6 +54,10 @@ __all__ = [
     "cir_phi_from_curves",
     "cir_variance",
     "cir_zcb_price",
+    # Gaussian helpers
+    "b_func",
+    "b_over_dt",
+    "variance_integral_ou",
     # Pricing
     "black_call",
     "black_implied_vol",

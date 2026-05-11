@@ -127,6 +127,29 @@ class GBMParams(BaseModel):
     initial_value: float = Field(gt=0)
 
 
+class SeasonalityParams(BaseModel):
+    """Fourier seasonality coefficients (2 harmonics, 4 coefficients).
+
+    The seasonal adjustment is:
+        0.01 * (a1*cos(2π*s) + a2*cos(4π*s) + b1*sin(2π*s) + b2*sin(4π*s))
+
+    where s is the fractional-year shift.
+
+    Attributes:
+        a1: First cosine harmonic coefficient.
+        a2: Second cosine harmonic coefficient.
+        b1: First sine harmonic coefficient.
+        b2: Second sine harmonic coefficient.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    a1: float = 0.0
+    a2: float = 0.0
+    b1: float = 0.0
+    b2: float = 0.0
+
+
 class PhiConfig(BaseModel):
     """Configuration for the phi/psi shift function.
 
