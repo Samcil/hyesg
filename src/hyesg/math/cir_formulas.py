@@ -1,0 +1,324 @@
+"""CIR process closed-form solutions.
+
+All functions are pure JAX, vectorizable with vmap.
+Uses float64 precision for financial accuracy.
+
+The CIR process: dx = α(μ - x)dt + σ√x dZ
+
+Key formulas:
+    h = √(α² + 2σ²)
+    B(τ) = 2(eʰᵗ - 1) / ((h + α)(eʰᵗ - 1) + 2h)
+    A(τ) = [2h·exp((α+h)τ/2) / ((h+α)(eʰᵗ-1) + 2h)]^(2αμ/σ²)
+    P(τ, x) = A(τ) · exp(-B(τ) · x)
+
+Edge cases:
+    σ → 0 (zero vol): B(τ) → (1-e^(-ατ))/α, A(τ) → exp(-μτ + μB(τ))
+    h → 0: handle via Taylor expansion
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import jax
+import jax.numpy as jnp
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from jaxtyping import Array, Float
+
+
+def cir_h(alpha: float, sigma: float) -> Float[Array, ""]:
+    """Compute h = √(α² + 2σ²).
+
+    Args:
+        alpha: Mean reversion speed.
+        sigma: Volatility.
+
+    Returns:
+        The auxiliary parameter h.
+    """
+    return jnp.sqrt(alpha**2 + 2.0 * sigma**2)
+
+
+def cir_B(
+    tau: Float[Array, ...] | float,
+    alpha: float,
+    sigma: float,
+) -> Float[Array, ...]:
+    """CIR B(τ) coefficient for bond pricing.
+
+    B(τ) = 2(eʰᵗ - 1) / ((h + α)(eʰᵗ - 1) + 2h)
+
+    For σ→0: B(τ) = (1 - e^(-ατ)) / α
+
+    Args:
+        tau: Time to maturity T-t.
+        alpha: Mean reversion speed.
+        sigma: Volatility.
+
+    Returns:
+        B(τ) coefficient.
+    """
+    tau = jnp.asarray(tau, dtype=jnp.float64)
+    h = cir_h(alpha, sigma)
+
+    exp_ht = jnp.exp(h * tau)
+    numerator = 2.0 * (exp_ht - 1.0)
+    denominator = (h + alpha) * (exp_ht - 1.0) + 2.0 * h
+
+    # Zero-vol limit: B(τ) = (1 - e^(-ατ)) / α
+    zero_vol_B = jnp.where(
+        alpha > 1e-12,
+        (1.0 - jnp.exp(-alpha * tau)) / alpha,
+        tau,
+    )
+
+    return jnp.where(sigma < 1e-7, zero_vol_B, numerator / denominator)
+
+
+def cir_A(
+    tau: Float[Array, ...] | float,
+    alpha: float,
+    mu: float,
+    sigma: float,
+) -> Float[Array, ...]:
+    """CIR A(τ) coefficient for bond pricing.
+
+    A(τ) = [2h·exp((α+h)τ/2) / ((h+α)(eʰᵗ-1) + 2h)]^(2αμ/σ²)
+
+    For σ→0: A(τ) = exp(-μτ + μ·B(τ))
+
+    Args:
+        tau: Time to maturity T-t.
+        alpha: Mean reversion speed.
+        mu: Long-run mean.
+        sigma: Volatility.
+
+    Returns:
+        A(τ) coefficient.
+    """
+    tau = jnp.asarray(tau, dtype=jnp.float64)
+    h = cir_h(alpha, sigma)
+
+    exp_ht = jnp.exp(h * tau)
+    denominator = (h + alpha) * (exp_ht - 1.0) + 2.0 * h
+    base = 2.0 * h * jnp.exp((alpha + h) * tau / 2.0) / denominator
+    exponent = 2.0 * alpha * mu / jnp.maximum(sigma**2, 1e-30)
+
+    A_standard = jnp.power(base, exponent)
+
+    # Zero-vol limit: A(τ) = exp(-μτ + μ·B(τ))
+    B_val = cir_B(tau, alpha, sigma)
+    A_zero_vol = jnp.exp(-mu * tau + mu * B_val)
+
+    return jnp.where(sigma < 1e-7, A_zero_vol, A_standard)
+
+
+def cir_zcb_price(
+    tau: Float[Array, ...] | float,
+    x: Float[Array, ...] | float,
+    alpha: float,
+    mu: float,
+    sigma: float,
+) -> Float[Array, ...]:
+    """CIR zero-coupon bond price P(τ, x) = A(τ) · exp(-B(τ) · x).
+
+    Args:
+        tau: Time to maturity T-t.
+        x: Current state variable.
+        alpha: Mean reversion speed.
+        mu: Long-run mean.
+        sigma: Volatility.
+
+    Returns:
+        Zero-coupon bond price.
+    """
+    tau = jnp.asarray(tau, dtype=jnp.float64)
+    x = jnp.asarray(x, dtype=jnp.float64)
+    A = cir_A(tau, alpha, mu, sigma)
+    B = cir_B(tau, alpha, sigma)
+    return A * jnp.exp(-B * x)
+
+
+def cir_forward_rate(
+    tau: Float[Array, ...] | float,
+    x: Float[Array, ...] | float,
+    alpha: float,
+    mu: float,
+    sigma: float,
+) -> Float[Array, ...]:
+    """CIR instantaneous forward rate f(t,T) = -∂/∂T ln P(t,T).
+
+    Computed via numerical differentiation of -ln P.
+
+    Args:
+        tau: Time to maturity T-t.
+        x: Current state variable.
+        alpha: Mean reversion speed.
+        mu: Long-run mean.
+        sigma: Volatility.
+
+    Returns:
+        Instantaneous forward rate.
+    """
+    tau = jnp.asarray(tau, dtype=jnp.float64)
+    x = jnp.asarray(x, dtype=jnp.float64)
+    eps = 1e-6
+    ln_p_plus = jnp.log(cir_zcb_price(tau + eps, x, alpha, mu, sigma))
+    ln_p_minus = jnp.log(
+        cir_zcb_price(jnp.maximum(tau - eps, 0.0), x, alpha, mu, sigma)
+    )
+    return -(ln_p_plus - ln_p_minus) / (2.0 * eps)
+
+
+def cir_expectation(
+    tau: Float[Array, ...] | float,
+    x: Float[Array, ...] | float,
+    alpha: float,
+    mu: float,
+) -> Float[Array, ...]:
+    """Expected value E[x(t+τ) | x(t) = x] = μ + (x - μ)e^(-ατ).
+
+    Args:
+        tau: Time horizon.
+        x: Current state.
+        alpha: Mean reversion speed.
+        mu: Long-run mean.
+
+    Returns:
+        Conditional expectation of x at time t+τ.
+    """
+    tau = jnp.asarray(tau, dtype=jnp.float64)
+    x = jnp.asarray(x, dtype=jnp.float64)
+    return mu + (x - mu) * jnp.exp(-alpha * tau)
+
+
+def cir_variance(
+    tau: Float[Array, ...] | float,
+    x: Float[Array, ...] | float,
+    alpha: float,
+    mu: float,
+    sigma: float,
+) -> Float[Array, ...]:
+    """Variance Var[x(t+τ) | x(t) = x].
+
+    Var = x·σ²/α·(e^(-ατ) - e^(-2ατ)) + μσ²/(2α)·(1 - e^(-ατ))²
+
+    Args:
+        tau: Time horizon.
+        x: Current state.
+        alpha: Mean reversion speed.
+        mu: Long-run mean.
+        sigma: Volatility.
+
+    Returns:
+        Conditional variance of x at time t+τ.
+    """
+    tau = jnp.asarray(tau, dtype=jnp.float64)
+    x = jnp.asarray(x, dtype=jnp.float64)
+    exp_at = jnp.exp(-alpha * tau)
+    term1 = x * sigma**2 / alpha * (exp_at - exp_at**2)
+    term2 = mu * sigma**2 / (2.0 * alpha) * (1.0 - exp_at) ** 2
+    return term1 + term2
+
+
+def cir_bond_option(
+    t: float,
+    T: float,
+    S: float,
+    K: float,
+    x: Float[Array, ...] | float,
+    alpha: float,
+    mu: float,
+    sigma: float,
+    is_call: bool,
+) -> Float[Array, ...]:
+    """CIR bond option price (placeholder for Jamshidian's formula).
+
+    Price of a European option on a ZCB: option to buy/sell
+    P(T,S) at price K at time T. Current time is t.
+
+    Args:
+        t: Current time.
+        T: Option expiry time.
+        S: Bond maturity time.
+        K: Strike price.
+        x: Current state variable.
+        alpha: Mean reversion speed.
+        mu: Long-run mean.
+        sigma: Volatility.
+        is_call: True for call, False for put.
+
+    Returns:
+        Option price (placeholder returning zeros).
+    """
+    x = jnp.asarray(x, dtype=jnp.float64)
+    # Full implementation requires non-central chi-squared CDF
+    return jnp.zeros_like(x)
+
+
+def cir_phi_from_curves(
+    t: Float[Array, ...] | float,
+    forward_curve_fn: Callable,
+    alpha: float,
+    mu: float,
+    sigma: float,
+    x0: float,
+) -> Float[Array, ...]:
+    """CIR++ phi shift: φ(t) = f_market(0,t) - f_CIR(0,t; x₀).
+
+    The shift that makes the CIR++ model match the initial
+    yield curve exactly.
+
+    Args:
+        t: Time point.
+        forward_curve_fn: Market forward rate function f(t).
+        alpha: Mean reversion speed.
+        mu: Long-run mean.
+        sigma: Volatility.
+        x0: Initial CIR state.
+
+    Returns:
+        Phi shift at time t.
+    """
+    t = jnp.asarray(t, dtype=jnp.float64)
+    f_market = forward_curve_fn(t)
+    f_cir = cir_forward_rate(t, x0, alpha, mu, sigma)
+    return f_market - f_cir
+
+
+def cir_integral_phi(
+    t: float,
+    T: float,
+    alpha: float,
+    mu: float,
+    sigma: float,
+    x0: float,
+    forward_curve_fn: Callable,
+) -> Float[Array, ...]:
+    """Integral of phi shift for CIR++ bond pricing.
+
+    ∫ₜᵀ φ(s)ds used in CIR++ ZCB pricing.
+
+    Args:
+        t: Start time.
+        T: End time.
+        alpha: Mean reversion speed.
+        mu: Long-run mean.
+        sigma: Volatility.
+        x0: Initial CIR state.
+        forward_curve_fn: Market forward rate function f(s).
+
+    Returns:
+        ∫ₜᵀ φ(s)ds.
+    """
+    n_points = 50
+    s_values = jnp.linspace(t, T, n_points)
+
+    phi_values = jax.vmap(
+        lambda s: cir_phi_from_curves(s, forward_curve_fn, alpha, mu, sigma, x0)
+    )(s_values)
+
+    return jnp.trapezoid(phi_values, s_values)

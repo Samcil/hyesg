@@ -1,0 +1,133 @@
+"""Model parameter schemas for hyesg.
+
+Pydantic v2 BaseModel classes for all model parameter types.
+These are the user-facing configuration objects — validated early,
+then converted to frozen internal representations for the engine.
+"""
+
+from __future__ import annotations
+
+import warnings
+from enum import StrEnum
+from typing import Literal
+
+from pydantic import BaseModel, Field, model_validator
+
+
+class CopulaType(StrEnum):
+    """Copula type for shock correlation."""
+
+    GAUSSIAN = "gaussian"
+    STUDENT_T = "student_t"
+
+
+class RebalanceStrategy(StrEnum):
+    """Portfolio rebalancing strategy."""
+
+    FIXED = "fixed"
+    MOMENTUM = "momentum"
+    BUY_AND_HOLD = "buy_and_hold"
+    TARGET_WEIGHT = "target_weight"
+
+
+class RecoveryType(StrEnum):
+    """Credit recovery assumption."""
+
+    FACE = "face_value"
+    MARKET = "market_value"
+    TREASURY = "treasury"
+    NONE = "no_recovery"
+
+
+class CIRParams(BaseModel):
+    """Parameters for a single-factor CIR process.
+
+    The Feller condition (2*alpha*mu > sigma**2) ensures the process
+    stays strictly positive. When violated, the process can hit zero.
+
+    Attributes:
+        alpha: Mean-reversion speed (must be > 0).
+        mu: Long-run mean level (must be >= 0).
+        sigma: Volatility (must be >= 0).
+        initial_value: Starting value (must be >= 0).
+        strict_feller: If True, raise on Feller violation.
+    """
+
+    alpha: float = Field(gt=0)
+    mu: float = Field(ge=0)
+    sigma: float = Field(ge=0)
+    initial_value: float = Field(ge=0)
+    strict_feller: bool = False
+
+    @model_validator(mode="after")
+    def _check_feller(self) -> CIRParams:
+        """Check the Feller condition: 2*alpha*mu > sigma**2."""
+        feller_lhs = 2.0 * self.alpha * self.mu
+        feller_rhs = self.sigma**2
+        if feller_lhs <= feller_rhs:
+            msg = (
+                f"Feller condition violated: "
+                f"2*alpha*mu={feller_lhs:.6f} <= "
+                f"sigma^2={feller_rhs:.6f}. "
+                f"Process may hit zero."
+            )
+            if self.strict_feller:
+                raise ValueError(msg)
+            warnings.warn(msg, UserWarning, stacklevel=2)
+        return self
+
+
+class OUParams(BaseModel):
+    """Parameters for an Ornstein-Uhlenbeck process.
+
+    For G1++/G2++ sub-factors, mu must be zero (the shift function
+    handles the mean level).
+
+    Attributes:
+        alpha: Mean-reversion speed (must be > 0).
+        mu: Long-run mean level.
+        sigma: Volatility (must be >= 0).
+        initial_value: Starting value.
+        model_type: One of "vasicek", "g1pp", "g2pp".
+    """
+
+    alpha: float = Field(gt=0)
+    mu: float = 0.0
+    sigma: float = Field(ge=0)
+    initial_value: float = 0.0
+    model_type: Literal["vasicek", "g1pp", "g2pp"] = "vasicek"
+
+    @model_validator(mode="after")
+    def _enforce_zero_mu(self) -> OUParams:
+        """Enforce mu=0 for G1++/G2++ sub-factors."""
+        if self.model_type in ("g1pp", "g2pp") and self.mu != 0.0:
+            raise ValueError(
+                f"mu must be 0 for {self.model_type} "
+                f"(shift function handles mean level), "
+                f"got mu={self.mu}"
+            )
+        return self
+
+
+class GBMParams(BaseModel):
+    """Parameters for geometric Brownian motion.
+
+    Attributes:
+        sigma: Volatility (must be >= 0).
+        initial_value: Starting value (must be > 0).
+    """
+
+    sigma: float = Field(ge=0)
+    initial_value: float = Field(gt=0)
+
+
+class PhiConfig(BaseModel):
+    """Configuration for the phi/psi shift function.
+
+    Attributes:
+        source: How to obtain the shift function.
+        curve_params: Extra params for calibrated curve source.
+    """
+
+    source: Literal["analytic", "calibrated_curve"] = "analytic"
+    curve_params: dict[str, float] | None = None
