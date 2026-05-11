@@ -211,3 +211,19 @@ class CreditParams(BaseModel):
     initial_intensity: float = Field(ge=0, default=0.01)
     recovery_rate: float = Field(ge=0, le=1, default=0.4)
     recovery_type: str = "face_value"
+
+
+class CIR2PPParams(BaseModel):
+    """Parameters for a two-factor CIR2++ model.
+
+    Each factor follows CIR dynamics independently.
+
+    Attributes:
+        factor1: CIR parameters for factor 1.
+        factor2: CIR parameters for factor 2.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    factor1: CIRParams
+    factor2: CIRParams
