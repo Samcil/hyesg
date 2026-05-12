@@ -19,6 +19,8 @@ from hyesg.calibration.objectives import (
 from hyesg.calibration.optimizer import (
     LevenbergMarquardt,
     LevenbergMarquardtConfig,
+    RobustLevenbergMarquardt,
+    RobustLevenbergMarquardtConfig,
     ScipyMinimize,
 )
 from hyesg.calibration.protocols import ObjectiveFunction, Optimizer
@@ -48,6 +50,8 @@ __all__ = [
     # Optimizers
     "LevenbergMarquardt",
     "LevenbergMarquardtConfig",
+    "RobustLevenbergMarquardt",
+    "RobustLevenbergMarquardtConfig",
     "ScipyMinimize",
     # Objectives
     "cir_curve_objective",

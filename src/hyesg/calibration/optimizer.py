@@ -1,17 +1,20 @@
 """Optimizer implementations for calibration.
 
-Provides Levenberg-Marquardt (pure JAX) and SciPy-based optimizers
-for fitting model parameters to market data.
+Provides Levenberg-Marquardt (pure JAX), a robust Madsen-Nielsen-Tingleff
+variant with box constraints and heuristic warm-start, and a SciPy-based
+optimizer for fitting model parameters to market data.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from jax import Array
 
 from hyesg.calibration.result import OptimizationResult
@@ -232,3 +235,267 @@ class ScipyMinimize:
             converged=bool(result.success),
             residuals=residuals if residuals.ndim > 0 else None,
         )
+
+
+@dataclass
+class RobustLevenbergMarquardtConfig:
+    """Configuration for the robust Levenberg-Marquardt optimizer.
+
+    Attributes:
+        max_iter: Maximum LM iterations.
+        tol: Convergence tolerance on cost reduction.
+        tol_grad: Convergence tolerance on gradient norm.
+        tol_param: Convergence tolerance on parameter change.
+        heuristic_trials: Number of random perturbation trials
+            in the BasicHeuristic warm-start phase.
+        heuristic_seed: NumPy RNG seed for the heuristic search.
+        damping_init: Initial Levenberg-Marquardt damping (λ).
+        damping_increase: Factor to increase damping on rejection.
+        damping_decrease: Factor to decrease damping on acceptance.
+    """
+
+    max_iter: int = 200
+    tol: float = 1e-10
+    tol_grad: float = 1e-10
+    tol_param: float = 1e-10
+    heuristic_trials: int = 50
+    heuristic_seed: int = 1
+    damping_init: float = 1e-3
+    damping_increase: float = 10.0
+    damping_decrease: float = 0.1
+
+
+class RobustLevenbergMarquardt:
+    """Madsen-Nielsen-Tingleff LM variant with box constraints.
+
+    Two-phase optimisation:
+
+    1. **BasicHeuristic** — random perturbation search around *x0*
+       using a NumPy MT19937 PRNG (seed configurable).  Evaluates
+       ``heuristic_trials`` candidates within the box and keeps the
+       best.  This provides a warm-start that avoids poor local minima.
+    2. **LM refinement** — standard Gauss-Newton with adaptive damping
+       from the best heuristic solution.  Box constraints are enforced
+       by clamping the step.
+
+    If LM diverges or fails to improve, the heuristic solution is
+    returned as a fallback.
+
+    Args:
+        config: Configuration dataclass.  Uses defaults if ``None``.
+    """
+
+    def __init__(
+        self, config: RobustLevenbergMarquardtConfig | None = None
+    ) -> None:
+        self.config = config or RobustLevenbergMarquardtConfig()
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def minimize(
+        self,
+        objective: Callable[..., Array],
+        x0: Array,
+        bounds: tuple[Array, Array] | None = None,
+        jacobian: Callable[..., Array] | None = None,
+        **kwargs: Any,
+    ) -> OptimizationResult:
+        """Minimize a residual function with optional box constraints.
+
+        The *objective* must return a residual vector ``r(x)``; the
+        optimizer minimises ``0.5 × ||r(x)||²``.
+
+        Args:
+            objective: Residual function ``r(params) → Array``.
+            x0: Initial parameter guess.
+            bounds: Optional ``(lower, upper)`` arrays for box
+                constraints.  Both must have the same shape as *x0*.
+            jacobian: Optional Jacobian function
+                ``J(params) → Array``.  If ``None``, central
+                differences are used.
+            **kwargs: Forwarded to *objective*.
+
+        Returns:
+            Optimisation result with fitted parameters.
+        """
+        cfg = self.config
+        x0 = jnp.asarray(x0, dtype=jnp.float64)
+
+        # Phase 1 — heuristic warm-start
+        x_best = self._basic_heuristic(objective, x0, bounds, **kwargs)
+        r_best = objective(x_best, **kwargs)
+        cost_best = float(0.5 * jnp.sum(r_best**2))
+
+        # Phase 2 — LM refinement
+        params = jnp.array(x_best)
+        residuals = objective(params, **kwargs)
+        cost = float(0.5 * jnp.sum(residuals**2))
+        damping = cfg.damping_init
+
+        converged = False
+        n_iter = 0
+        grad_norm_val: float | None = None
+
+        for i in range(cfg.max_iter):
+            n_iter = i + 1
+
+            if jacobian is not None:
+                jac = jacobian(params, **kwargs)
+            else:
+                jac = self._central_differences_jacobian(
+                    lambda p: objective(p, **kwargs), params
+                )
+
+            jtj = jac.T @ jac
+            jtr = jac.T @ residuals
+            grad_norm_val = float(jnp.max(jnp.abs(jtr)))
+
+            if grad_norm_val < cfg.tol_grad:
+                converged = True
+                break
+
+            n_params = params.shape[0]
+            lhs = jtj + damping * jnp.eye(n_params)
+            delta = jnp.linalg.solve(lhs, -jtr)
+
+            # Apply step with box clamping
+            params_new = self._clamp(params + delta, bounds)
+
+            residuals_new = objective(params_new, **kwargs)
+            cost_new = float(0.5 * jnp.sum(residuals_new**2))
+
+            if cost_new < cost:
+                # Accept step
+                params = params_new
+                residuals = residuals_new
+                cost = cost_new
+                damping = max(damping * cfg.damping_decrease, 1e-15)
+
+                param_change = float(
+                    jnp.max(jnp.abs(delta))
+                    / jnp.maximum(jnp.max(jnp.abs(params)), 1.0)
+                )
+                if param_change < cfg.tol_param:
+                    converged = True
+                    break
+
+                if cost < cfg.tol:
+                    converged = True
+                    break
+            else:
+                # Reject step, increase damping
+                damping = min(damping * cfg.damping_increase, 1e10)
+
+        # Fallback: if LM result is worse than heuristic, keep heuristic
+        if cost > cost_best:
+            logger.info(
+                "LM failed to improve on heuristic (%.4e > %.4e); "
+                "returning heuristic solution",
+                cost,
+                cost_best,
+            )
+            return OptimizationResult(
+                params=x_best,
+                objective_value=cost_best,
+                n_iterations=n_iter,
+                converged=False,
+                residuals=r_best,
+                gradient_norm=grad_norm_val,
+            )
+
+        return OptimizationResult(
+            params=params,
+            objective_value=cost,
+            n_iterations=n_iter,
+            converged=converged,
+            residuals=residuals,
+            gradient_norm=grad_norm_val,
+        )
+
+    # ------------------------------------------------------------------
+    # Internals
+    # ------------------------------------------------------------------
+
+    def _basic_heuristic(
+        self,
+        objective: Callable[..., Array],
+        x0: Array,
+        bounds: tuple[Array, Array] | None,
+        **kwargs: Any,
+    ) -> Array:
+        """Random perturbation search around *x0*.
+
+        Uses a NumPy MT19937 PRNG for reproducibility.
+        """
+        cfg = self.config
+        rng = np.random.RandomState(cfg.heuristic_seed)  # noqa: NPY002
+
+        x_best = jnp.array(x0)
+        r_best = objective(x_best, **kwargs)
+        cost_best = float(0.5 * jnp.sum(r_best**2))
+
+        for _ in range(cfg.heuristic_trials):
+            # Perturb within bounds or ±50 % of x0
+            perturbation = jnp.asarray(
+                rng.uniform(-1.0, 1.0, size=x0.shape), dtype=jnp.float64
+            )
+            if bounds is not None:
+                lower, upper = bounds
+                candidate = lower + perturbation * 0.5 * (upper - lower) + 0.5 * (
+                    upper + lower
+                )
+                candidate = jnp.clip(candidate, lower, upper)
+            else:
+                scale = jnp.maximum(jnp.abs(x0), jnp.ones_like(x0))
+                candidate = x0 + perturbation * 0.5 * scale
+
+            r_cand = objective(candidate, **kwargs)
+            cost_cand = float(0.5 * jnp.sum(r_cand**2))
+
+            if cost_cand < cost_best:
+                x_best = candidate
+                cost_best = cost_cand
+
+        return x_best
+
+    @staticmethod
+    def _clamp(
+        x: Array, bounds: tuple[Array, Array] | None
+    ) -> Array:
+        """Clamp *x* to lie within *bounds*."""
+        if bounds is None:
+            return x
+        lower, upper = bounds
+        return jnp.clip(x, lower, upper)
+
+    @staticmethod
+    def _central_differences_jacobian(
+        f: Callable[[Array], Array],
+        x: Array,
+        eps: float = 1e-7,
+    ) -> Array:
+        """Compute Jacobian via central finite differences.
+
+        Args:
+            f: Function mapping params → residual vector.
+            x: Point at which to evaluate the Jacobian.
+            eps: Step size for finite differences.
+
+        Returns:
+            Jacobian array of shape ``(n_residuals, n_params)``.
+        """
+        n = x.shape[0]
+        f0 = f(x)
+        m = f0.shape[0]
+        J = jnp.zeros((m, n), dtype=jnp.float64)
+
+        for j in range(n):
+            e_j = jnp.zeros(n, dtype=jnp.float64).at[j].set(1.0)
+            f_plus = f(x + eps * e_j)
+            f_minus = f(x - eps * e_j)
+            col = (f_plus - f_minus) / (2.0 * eps)
+            J = J.at[:, j].set(col)
+
+        return J
