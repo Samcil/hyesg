@@ -12,7 +12,19 @@ from hyesg.models.equity.svjd import (
     ZeroJumpAdapter,
     svjd_equity_step,
 )
+from hyesg.models.exchange_rates.forward import (
+    ConstantBidOfferSpread,
+    FCAForwardPricer,
+    FXForward,
+    FXForwardPricer,
+    TransactionCostModel,
+)
 from hyesg.models.exchange_rates.fx import FXRate
+from hyesg.models.exchange_rates.hedging import (
+    CurrencyHedgedEquityRebalancer,
+    CurrencyHedger,
+    HedgeState,
+)
 from hyesg.models.inflation.inflation import Inflation
 from hyesg.models.jumps.jump_models import (
     ConstantIntensityJumpModel,
@@ -54,19 +66,26 @@ __all__ = [
     "CIRPlusPlus",
     "CIRVolAdapter",
     "CIRVolatility",
+    "ConstantBidOfferSpread",
     "ConstantIntensityJumpModel",
     "ConstantJumpAdapter",
     "Credit",
     "CurrencyAnalogy",
+    "CurrencyHedgedEquityRebalancer",
+    "CurrencyHedger",
     "Deterministic",
     "DividendYield",
     "Equity",
     "EquityAndDividendYield",
     "ExchangeRateAnalogyChain",
+    "FCAForwardPricer",
     "FactorWedge",
+    "FXForward",
+    "FXForwardPricer",
     "FXRate",
     "G1PP",
     "G2PP",
+    "HedgeState",
     "Inflation",
     "JumpProcess",
     "NominalAndExchangeRate",
@@ -78,6 +97,7 @@ __all__ = [
     "SalaryWedgeState",
     "StandardNominal",
     "StochasticIntensityJumpModel",
+    "TransactionCostModel",
     "Vasicek",
     "VolatilityProcess",
     "WedgeCurrencyAndInflationWedge",

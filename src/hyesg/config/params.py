@@ -227,3 +227,179 @@ class CIR2PPParams(BaseModel):
 
     factor1: CIRParams
     factor2: CIRParams
+
+
+# ─── Credit System Configuration ───
+
+
+class CreditDynamicsParams(BaseModel):
+    """Full CIR++ dynamics parameters for a credit class.
+
+    Attributes:
+        x0: Initial CIR factor value.
+        mu: Long-run mean intensity.
+        alpha: Mean-reversion speed.
+        sigma: CIR volatility.
+        rw_expectation: Real-world expected intensity.
+        rw_variance: Real-world intensity variance.
+        phi_knots: Phi shift values at t=0, 5, 10, 20.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    x0: float = Field(ge=0)
+    mu: float = Field(ge=0)
+    alpha: float = Field(gt=0)
+    sigma: float = Field(ge=0)
+    rw_expectation: float = Field(ge=0)
+    rw_variance: float = Field(ge=0)
+    phi_knots: list[float] = Field(min_length=4, max_length=4)
+
+
+class PooledBondParams(BaseModel):
+    """Pool parameters for a credit class.
+
+    Attributes:
+        activation_rate: Rate at which new issuers enter the pool.
+        initial_active_issuers: Number of issuers active at t=0.
+        total_pool_size: Maximum number of issuers in the pool.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    activation_rate: float = Field(gt=0)
+    initial_active_issuers: int = Field(gt=0)
+    total_pool_size: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def _pool_size_gte_initial(self) -> PooledBondParams:
+        """Total pool must be at least as large as initial active."""
+        if self.total_pool_size < self.initial_active_issuers:
+            raise ValueError(
+                f"total_pool_size ({self.total_pool_size}) must be >= "
+                f"initial_active_issuers ({self.initial_active_issuers})"
+            )
+        return self
+
+
+class LiquidityCIRParams(BaseModel):
+    """CIR parameters for a liquidity process tier.
+
+    Attributes:
+        x0: Initial liquidity intensity.
+        mu: Long-run mean.
+        alpha: Mean-reversion speed.
+        sigma: Volatility.
+        rw_expectation: Real-world expected intensity.
+        rw_variance: Real-world intensity variance.
+        liquidity_recovery_rate: Recovery rate for liquidity events.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    x0: float = Field(ge=0)
+    mu: float = Field(ge=0)
+    alpha: float = Field(gt=0)
+    sigma: float = Field(ge=0)
+    rw_expectation: float = Field(ge=0)
+    rw_variance: float = Field(ge=0)
+    liquidity_recovery_rate: float = Field(ge=0, le=1, default=0.75)
+
+
+class CreditClassConfig(BaseModel):
+    """Per-class configuration combining dynamics and optional pool.
+
+    Attributes:
+        dynamics: CIR++ dynamics parameters.
+        pool: Optional pooled bond parameters.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    dynamics: CreditDynamicsParams
+    pool: PooledBondParams | None = None
+
+
+class IntensityTransformConfig(BaseModel):
+    """9-knot spline configuration for RN→RW intensity transform.
+
+    Attributes:
+        knot_xs: X coordinates (risk-neutral intensities).
+        knot_ys: Y coordinates (real-world intensities).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    knot_xs: list[float] = Field(min_length=2)
+    knot_ys: list[float] = Field(min_length=2)
+
+    @model_validator(mode="after")
+    def _check_lengths(self) -> IntensityTransformConfig:
+        """Knot arrays must have equal length."""
+        if len(self.knot_xs) != len(self.knot_ys):
+            raise ValueError(
+                f"knot_xs length ({len(self.knot_xs)}) must equal "
+                f"knot_ys length ({len(self.knot_ys)})"
+            )
+        return self
+
+
+class CreditSystemConfig(BaseModel):
+    """Top-level configuration for the entire credit system.
+
+    Attributes:
+        credit_classes: Per-class configs keyed by CreditClass name.
+        rn_rw_transform: RN→RW intensity transform spline config.
+        recovery_rate: Global recovery rate on default.
+        recovery_type: Recovery assumption type.
+        currencies: List of foreign currencies (GBP is base).
+        liquidity_medium: CIR params for medium-liquidity tier.
+        liquidity_low: CIR params for low-liquidity tier.
+        liquidity_rn_scale: Scale factor for liquidity RN→RW transform.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    credit_classes: dict[str, CreditClassConfig]
+    rn_rw_transform: IntensityTransformConfig
+    recovery_rate: float = Field(ge=0, le=1, default=0.35)
+    recovery_type: str = "treasury"
+    currencies: list[str] = Field(default_factory=lambda: ["GBP", "USD", "EUR"])
+    liquidity_medium: LiquidityCIRParams | None = None
+    liquidity_low: LiquidityCIRParams | None = None
+    liquidity_rn_scale: float = Field(gt=0, default=0.1)
+
+
+class FXForwardConfig(BaseModel):
+    """Configuration for FX forward pricing.
+
+    Attributes:
+        spot_fx_model: Dependency key for the spot FX model.
+        domestic_rate_model: Dependency key for domestic rate model.
+        foreign_rate_model: Dependency key for foreign rate model.
+        tenors: Forward tenors in years.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    spot_fx_model: str = ""
+    domestic_rate_model: str = ""
+    foreign_rate_model: str = ""
+    tenors: tuple[float, ...] = (0.25, 0.5, 1.0)
+
+
+class CurrencyHedgeConfig(BaseModel):
+    """Configuration for currency hedging.
+
+    Attributes:
+        hedge_ratio: Fraction of FX exposure hedged (0 = unhedged,
+            1 = fully hedged).
+        roll_frequency_months: Forward tenor / roll frequency (1, 3, 6, 12).
+        spread_bps: Bid-offer half-spread in basis points per roll.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    hedge_ratio: float = Field(ge=0, le=1, default=1.0)
+    roll_frequency_months: Literal[1, 3, 6, 12] = 12
+    spread_bps: float = Field(ge=0, default=5.0)
