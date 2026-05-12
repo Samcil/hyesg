@@ -1,0 +1,4 @@
+﻿Simulation.Derivatives.LiquidityGap(LiquidityGap_c0f0pt03).Process.dZ,Simulation.Derivatives.LiquidityGap(LiquidityGap_c0f0pt05).Process.dZ,Simulation.Derivatives.LiquidityGap(LiquidityGap_c0fInfinity).Process.dZ
+1,0.7,0.7
+0.7,1,0.7
+0.7,0.7,1

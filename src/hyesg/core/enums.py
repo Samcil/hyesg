@@ -19,10 +19,11 @@ class CreditClass(IntEnum):
 
 
 class Liquidity(Enum):
-    """Liquidity classification for bond portfolios."""
+    """Liquidity classification for bond portfolios (3-tier)."""
 
-    LIQUID = "liquid"
-    ILLIQUID = "illiquid"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
 
 
 class RecoveryType(Enum):

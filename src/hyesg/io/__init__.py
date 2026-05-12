@@ -8,6 +8,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from hyesg.io.correlation_csv import (
+    CORRELATION_CSV_NAMES,
+    CorrelationSource,
+    CsvCorrelationSource,
+)
 from hyesg.io.csv_io import from_csv, to_csv
 from hyesg.io.streaming import StreamingWriter
 
@@ -17,6 +22,9 @@ if TYPE_CHECKING:
     from hyesg.engine.output import SimulationResult
 
 __all__ = [
+    "CORRELATION_CSV_NAMES",
+    "CorrelationSource",
+    "CsvCorrelationSource",
     "StreamingWriter",
     "from_csv",
     "from_hdf5",
