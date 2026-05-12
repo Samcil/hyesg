@@ -16,7 +16,9 @@ from hyesg.engine.correlation import (
     correlate_shocks,
     merge_copula_shocks,
     nearest_psd,
+    repair_correlation_hyperspherical,
     split_copula_shocks,
+    validate_and_repair,
     validate_correlation_matrix,
 )
 from hyesg.engine.rng import (
@@ -64,6 +66,7 @@ __all__ = [
     "generate_trial_shocks",
     "merge_copula_shocks",
     "nearest_psd",
+    "repair_correlation_hyperspherical",
     "Simulator",
     "SimulationResult",
     "split_copula_shocks",
@@ -71,5 +74,6 @@ __all__ = [
     "student_t_copula",
     "student_t_copula_inverse",
     "topological_sort",
+    "validate_and_repair",
     "validate_correlation_matrix",
 ]

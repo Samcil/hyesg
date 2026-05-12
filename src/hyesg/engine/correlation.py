@@ -1,8 +1,8 @@
 """Correlation engine — Cholesky decomposition and shock pipeline.
 
 Provides correlation matrix validation, Cholesky factorisation with
-automatic nearest-PSD fallback, and a split pipeline for correlating
-shocks (copula vs non-copula).
+automatic nearest-PSD fallback, hyperspherical parameterisation repair,
+and a split pipeline for correlating shocks (copula vs non-copula).
 
 All functions are pure and compatible with ``jax.jit``.
 
@@ -21,9 +21,14 @@ have Cholesky applied directly to raw normals.
 
 from __future__ import annotations
 
+from typing import Sequence
+
 import jax
 import jax.numpy as jnp
 from jax import Array
+
+from hyesg.calibration.optimizer import LevenbergMarquardt, LevenbergMarquardtConfig
+from hyesg.core.matrix import SymmetricLabelledMatrix
 
 # ---------------------------------------------------------------------------
 # Correlation matrix validation
@@ -287,3 +292,176 @@ def merge_copula_shocks(
     merged = merged.at[:, non_copula_idx].set(non_copula_shocks)
 
     return merged
+
+
+# ---------------------------------------------------------------------------
+# Hyperspherical parameterisation repair
+# ---------------------------------------------------------------------------
+
+
+def _angles_to_correlation(angles: Array, n: int) -> Array:
+    """Convert hyperspherical angles to a correlation matrix.
+
+    Parameterises ``C = B @ B.T`` where *B* is lower-triangular,
+    constructed from ``n*(n-1)/2`` free angle parameters in
+    ``(0, pi)``.
+
+    Construction::
+
+        B[i, j] = cos(theta_{i,j}) * prod(sin(theta_{i,k}) for k < j)
+                  for j < i
+        B[i, i] = prod(sin(theta_{i,k}) for k < i)
+
+    This guarantees the result is PSD with unit diagonal.
+
+    Args:
+        angles: Array of ``n*(n-1)/2`` angle parameters.
+        n: Matrix dimension.
+
+    Returns:
+        Correlation matrix of shape ``(n, n)``.
+    """
+    if n == 1:
+        return jnp.ones((1, 1), dtype=angles.dtype)
+
+    B = jnp.zeros((n, n), dtype=angles.dtype)
+    idx = 0
+    for i in range(n):
+        for j in range(i + 1):
+            if j == 0 and i == 0:
+                B = B.at[0, 0].set(1.0)
+            elif j < i:
+                # B[i,j] = cos(theta_{idx}) * prod(sin(theta) for earlier j)
+                val = jnp.cos(angles[idx])
+                for k in range(j):
+                    prev_idx = idx - (j - k)
+                    val = val * jnp.sin(angles[prev_idx])
+                B = B.at[i, j].set(val)
+                idx += 1
+            else:
+                # j == i: diagonal element = prod of all sines in this row
+                val = jnp.ones((), dtype=angles.dtype)
+                for k in range(i):
+                    prev_idx = idx - (i - k)
+                    val = val * jnp.sin(angles[prev_idx])
+                B = B.at[i, i].set(val)
+
+    return B @ B.T
+
+
+def _correlation_residuals(angles: Array, *, target: Array, n: int) -> Array:
+    """Compute weighted Frobenius residuals between target and parameterised matrix.
+
+    Only uses lower-triangular elements (including diagonal) to avoid
+    double-counting from symmetry.
+
+    Args:
+        angles: Angle parameters.
+        target: Target correlation matrix.
+        n: Matrix dimension.
+
+    Returns:
+        Flat residual vector of the lower-triangular differences.
+    """
+    C = _angles_to_correlation(angles, n)
+    # Extract lower-triangular elements (including diagonal)
+    rows, cols = jnp.tril_indices(n)
+    residuals = C[rows, cols] - target[rows, cols]
+    return residuals
+
+
+def repair_correlation_hyperspherical(
+    target: Array,
+    max_iterations: int = 50,
+    tol: float = 1e-6,
+) -> Array:
+    """Repair a non-PSD matrix using hyperspherical parameterisation.
+
+    Optimises angles to minimise weighted Frobenius residuals
+    ``||C_target - C_repaired||_F`` using Levenberg-Marquardt.
+
+    Initial guess: ``pi/2`` for all angles (produces identity matrix).
+
+    Args:
+        target: Target correlation matrix (may not be PSD).
+        max_iterations: LM iterations.
+        tol: Convergence tolerance.
+
+    Returns:
+        Repaired PSD correlation matrix.
+    """
+    target = jnp.asarray(target, dtype=jnp.float64)
+    n = target.shape[0]
+
+    if n == 1:
+        return jnp.ones((1, 1), dtype=jnp.float64)
+
+    # Symmetrise target
+    target = 0.5 * (target + target.T)
+
+    n_angles = n * (n - 1) // 2
+    # pi/2 initialisation → identity matrix
+    angles0 = jnp.full(n_angles, jnp.pi / 2, dtype=jnp.float64)
+
+    config = LevenbergMarquardtConfig(
+        max_iterations=max_iterations,
+        tol_grad=tol,
+        tol_param=tol,
+        tol_residual=tol,
+        damping_init=1e-3,
+        damping_increase=10.0,
+        damping_decrease=0.1,
+    )
+    lm = LevenbergMarquardt(config)
+    result = lm.minimize(_correlation_residuals, angles0, target=target, n=n)
+
+    return _angles_to_correlation(result.params, n)
+
+
+def validate_and_repair(
+    matrix: Array,
+    labels: Sequence[str] | None = None,
+    method: str = "higham",
+) -> SymmetricLabelledMatrix[str] | Array:
+    """Validate correlation matrix and repair if not PSD.
+
+    Pipeline:
+
+    1. Check if already PSD (eigenvalue check).
+    2. If PSD and labels provided, return ``SymmetricLabelledMatrix``.
+    3. If not PSD, run repair (Higham or hyperspherical).
+    4. Verify result is PSD.
+    5. Return repaired matrix.
+
+    Args:
+        matrix: Symmetric matrix to validate.
+        labels: Optional labels for rows/columns.
+        method: Repair method — ``"higham"`` or ``"hyperspherical"``.
+
+    Returns:
+        Validated (possibly repaired) matrix. If *labels* are provided,
+        returns a ``SymmetricLabelledMatrix``; otherwise a raw array.
+
+    Raises:
+        ValueError: If *method* is not recognised.
+    """
+    if method not in ("higham", "hyperspherical"):
+        raise ValueError(
+            f"Unknown repair method {method!r}; expected 'higham' or "
+            f"'hyperspherical'"
+        )
+
+    matrix = jnp.asarray(matrix, dtype=jnp.float64)
+
+    # Check current PSD status
+    is_valid, _ = validate_correlation_matrix(matrix)
+
+    if not is_valid:
+        if method == "higham":
+            matrix = nearest_psd(matrix)
+        else:
+            matrix = repair_correlation_hyperspherical(matrix)
+
+    if labels is not None:
+        return SymmetricLabelledMatrix(matrix, list(labels))
+    return matrix

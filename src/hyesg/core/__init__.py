@@ -1,4 +1,4 @@
-"""Core module: protocols, types, registry, constants, enums, and domain types."""
+"""Core module: protocols, types, registry, constants, enums, domain types, and matrix."""
 
 from hyesg.core.constants import (
     AKIMA_CSV_ROUND_PLACES,
@@ -72,6 +72,10 @@ from hyesg.core.registry import (
     get_model,
     list_models,
     register_model,
+)
+from hyesg.core.matrix import (
+    LabelledMatrix,
+    SymmetricLabelledMatrix,
 )
 from hyesg.core.types import (
     CIR2State,
@@ -158,6 +162,9 @@ __all__ = [
     "get_model",
     "list_models",
     "register_model",
+    # matrix
+    "LabelledMatrix",
+    "SymmetricLabelledMatrix",
     # types
     "CIR2State",
     "CIRState",
