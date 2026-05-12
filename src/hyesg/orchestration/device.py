@@ -2,6 +2,13 @@
 
 Provides ``DeviceInfo`` and utilities to auto-detect or manually
 select the JAX compute device (CPU, GPU, TPU).
+
+.. todo::
+    **F40 Integration Path** — Device selection should be invoked
+    as a ``PipelineStep`` early in the orchestration pipeline,
+    before ``SimulateStep``.  The chosen device should be stored in
+    ``PipelineContext.metadata["device"]`` so that downstream steps
+    can query the active backend.
 """
 
 from __future__ import annotations

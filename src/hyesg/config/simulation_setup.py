@@ -3,6 +3,10 @@
 Defines ``SimulationSetup`` (the complete simulation specification) and
 ``SimulationSetupBuilder`` (a fluent API for constructing one).  These
 map to the C# ``SimulationSetup`` class used by the ESG engine.
+
+The ``to_simulation_config()`` bridge converts an economy-oriented
+``SimulationSetup`` into the flat ``SimulationConfig`` consumed by the
+:class:`~hyesg.engine.simulator.Simulator`.
 """
 
 from __future__ import annotations
@@ -10,6 +14,8 @@ from __future__ import annotations
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from hyesg.config.economy import Economy
 
 
 class SetupRegimeConfig(BaseModel):
@@ -90,6 +96,113 @@ class SimulationSetup(BaseModel):
         if self.total_trials == 0:
             errors.append("Total trials is 0")
         return errors
+
+    def to_simulation_config(self, name: str = "ess") -> SimulationConfig:
+        """Convert this economy-oriented setup to a flat ``SimulationConfig``.
+
+        Flattens economies into a list of ``ModelConfig`` entries,
+        assembles ``CorrelationEntry`` pairs from model shock configs,
+        and maps regimes to ``RegimeConfig`` entries.
+
+        This bridges the two parallel config systems so that a
+        ``SimulationSetup`` can drive the :class:`Simulator` directly.
+
+        Args:
+            name: Name for the resulting ``SimulationConfig``.
+
+        Returns:
+            A ``SimulationConfig`` ready for :class:`Simulator`.
+        """
+        from hyesg.config.models import (
+            CorrelationEntry,
+            ModelConfig,
+            PostProcessorConfig,
+            RegimeConfig,
+            SimulationConfig,
+            TimeGridConfig,
+        )
+
+        # --- time grid ---
+        time_grid = TimeGridConfig(
+            start_year=0.0,
+            end_year=float(self.horizon),
+            frequency="monthly" if self.inverse_dt == 12 else (
+                "quarterly" if self.inverse_dt == 4 else (
+                    "annual" if self.inverse_dt == 1 else "monthly"
+                )
+            ),
+        )
+
+        # --- flatten economies → ModelConfig list ---
+        model_configs: list[ModelConfig] = []
+        for economy in self.economies:
+            if not isinstance(economy, Economy):
+                continue
+            domestic_nominal = None
+            if economy.is_domestic:
+                domestic_nominal = economy.nominal_rate_model.label
+            for emc in economy.all_models:
+                deps: list[str] = []
+                if emc is economy.fx_model and domestic_nominal:
+                    deps.append(domestic_nominal)
+                    deps.append(economy.nominal_rate_model.label)
+                elif emc is economy.real_rate_model:
+                    deps.append(economy.nominal_rate_model.label)
+                elif emc is economy.inflation_model and economy.real_rate_model:
+                    deps.append(economy.real_rate_model.label)
+                elif emc in economy.equity_models:
+                    deps.append(economy.nominal_rate_model.label)
+                elif emc is economy.credit_pool:
+                    deps.append(economy.nominal_rate_model.label)
+                elif emc is economy.salary_model and economy.real_rate_model:
+                    deps.append(economy.real_rate_model.label)
+                model_configs.append(
+                    ModelConfig(
+                        type=emc.model_type,
+                        name=emc.label,
+                        params=dict(emc.params),
+                        dependencies=deps,
+                    )
+                )
+
+        # --- correlations ---
+        correlations: list[CorrelationEntry] = []
+        if isinstance(self.correlation, list):
+            for entry in self.correlation:
+                if isinstance(entry, CorrelationEntry):
+                    correlations.append(entry)
+                elif isinstance(entry, dict):
+                    correlations.append(CorrelationEntry(**entry))
+
+        # --- regimes ---
+        regime_configs: list[RegimeConfig] = []
+        for regime in self.regimes:
+            regime_configs.append(
+                RegimeConfig(
+                    name=regime.name,
+                    n_trials=regime.trials,
+                    seed=self.seed,
+                    param_overrides=regime.calibration_params,
+                )
+            )
+
+        # --- post-processors ---
+        post_processors: list[PostProcessorConfig] = []
+        if isinstance(self.post_processing, list):
+            for pp in self.post_processing:
+                if isinstance(pp, PostProcessorConfig):
+                    post_processors.append(pp)
+                elif isinstance(pp, dict):
+                    post_processors.append(PostProcessorConfig(**pp))
+
+        return SimulationConfig(
+            name=name,
+            time_grid=time_grid,
+            models=model_configs,
+            correlations=correlations,
+            regimes=regime_configs,
+            post_processors=post_processors,
+        )
 
 
 class SimulationSetupBuilder:

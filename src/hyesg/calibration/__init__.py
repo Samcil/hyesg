@@ -23,10 +23,13 @@ from hyesg.calibration.optimizer import (
     RobustLevenbergMarquardtConfig,
     ScipyMinimize,
 )
-from hyesg.calibration.protocols import ObjectiveFunction, Optimizer
+from hyesg.calibration.protocols import CalibrationDataReader, ObjectiveFunction, Optimizer
 from hyesg.calibration.result import CalibrationResult, OptimizationResult
 from hyesg.calibration.sabr import (
+    NelsonSiegelParams,
+    SabrCalibrationResult,
     SabrCalibrator,
+    SabrSmileResult,
     SabrTermStructure,
     nelson_siegel_tanh,
     sabr_implied_vol_hagan,
@@ -52,6 +55,7 @@ from hyesg.calibration.yield_curves import (
 
 __all__ = [
     # Protocols
+    "CalibrationDataReader",
     "ObjectiveFunction",
     "Optimizer",
     # Results
@@ -91,7 +95,10 @@ __all__ = [
     "RpiReformConfig",
     "YieldCurvePipelineConfig",
     # SABR calibration
+    "NelsonSiegelParams",
+    "SabrCalibrationResult",
     "SabrCalibrator",
+    "SabrSmileResult",
     "SabrTermStructure",
     "nelson_siegel_tanh",
     "sabr_implied_vol_hagan",

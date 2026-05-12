@@ -1,7 +1,7 @@
 """Calibration protocol definitions.
 
-Defines the core interfaces for objective functions and optimizers
-used in the calibration framework.
+Defines the core interfaces for objective functions, optimizers,
+and calibration data readers used in the calibration framework.
 """
 
 from __future__ import annotations
@@ -12,6 +12,25 @@ if TYPE_CHECKING:
     from jax import Array
 
     from hyesg.calibration.result import OptimizationResult
+
+
+@runtime_checkable
+class CalibrationDataReader(Protocol):
+    """Protocol for reading calibration market data.
+
+    Implementations load market data (yield curves, spreads, etc.)
+    from files, databases, or in-memory sources and return a dict
+    keyed by data label.
+    """
+
+    def read(self) -> dict[str, Any]:
+        """Read and return calibration market data.
+
+        Returns:
+            Dictionary of market data keyed by label
+            (e.g. ``"nominal_curve"``, ``"credit_spreads"``).
+        """
+        ...
 
 
 @runtime_checkable

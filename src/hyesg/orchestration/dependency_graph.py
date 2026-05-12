@@ -3,6 +3,21 @@
 The ``ModelDependencyGraph`` resolves execution order for all models
 in a multi-economy simulation, ensuring that each model runs only
 after its dependencies have completed.
+
+.. todo::
+    **F40 Integration Path** — ``ModelDependencyGraph`` duplicates
+    the topological sort in :func:`~hyesg.engine.simulator.topological_sort`.
+    Future integration:
+
+    1. Consolidate into a single ``topological_sort`` utility that both
+       the ``Simulator`` and ``ModelDependencyGraph`` call.
+    2. ``ModelDependencyGraph`` should accept ``Economy`` objects and
+       produce the ``ModelConfig.dependencies`` lists that
+       ``SimulationConfig`` expects, bridging the economy-oriented
+       and flat config systems.
+    3. Cross-economy dependencies (e.g. FX referencing a domestic
+       nominal rate) should be resolved here, not in
+       ``to_simulation_config()``.
 """
 
 from __future__ import annotations

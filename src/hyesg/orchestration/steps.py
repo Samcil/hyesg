@@ -1,30 +1,42 @@
 """Built-in pipeline steps.
 
 Provides ready-to-use steps for the most common pipeline operations:
-simulate, validate, and timing.
+simulate, validate, timing, and calibration.
 """
 
 from __future__ import annotations
 
+import logging
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import jax.numpy as jnp
 
 from hyesg.engine.simulator import Simulator
 
 if TYPE_CHECKING:
+    from hyesg.calibration.protocols import CalibrationDataReader
     from hyesg.orchestration.pipeline import PipelineContext
+
+logger = logging.getLogger(__name__)
 
 
 class SimulateStep:
     """Run the simulation and store the result in the pipeline context.
+
+    Args:
+        models: Optional dict of pre-built model instances.
+            If provided, these are passed to the ``Simulator``
+            instead of auto-building from config.
 
     Attributes:
         name: Step identifier (``"simulate"``).
     """
 
     name: str = "simulate"
+
+    def __init__(self, models: dict[str, Any] | None = None) -> None:
+        self._models = models
 
     def execute(self, context: PipelineContext) -> PipelineContext:
         """Execute the simulation.
@@ -35,7 +47,7 @@ class SimulateStep:
         Returns:
             Context with ``result`` populated.
         """
-        sim = Simulator(context.config)
+        sim = Simulator(context.config, models=self._models)
         if context.config.regimes:
             context.result = sim.run_all_regimes()
         else:
@@ -123,6 +135,112 @@ class TimingStep:
             context.metadata["timing_start"] = now
         else:
             context.metadata["timing_elapsed_seconds"] = now - self._start
+        return context
+
+
+class CalibrationStep:
+    """Run calibration and store results in the pipeline context.
+
+    Reads market data via a ``CalibrationDataReader``, invokes the
+    ``Calibrator``, and writes results to ``context.metadata["calibration"]``.
+
+    Args:
+        reader: A ``CalibrationDataReader`` that provides market data.
+        calibrator_kwargs: Extra keyword arguments passed to
+            :meth:`Calibrator.calibrate`.
+
+    Attributes:
+        name: Step identifier (``"calibrate"``).
+    """
+
+    name: str = "calibrate"
+
+    def __init__(
+        self,
+        reader: CalibrationDataReader,
+        *,
+        calibrator_kwargs: dict[str, Any] | None = None,
+    ) -> None:
+        self._reader = reader
+        self._calibrator_kwargs = calibrator_kwargs or {}
+
+    def execute(self, context: PipelineContext) -> PipelineContext:
+        """Execute calibration.
+
+        Reads market data, runs calibration, and stores results.
+
+        Args:
+            context: Pipeline context containing the config.
+
+        Returns:
+            Context with ``metadata["calibration"]`` populated.
+        """
+        t_start = time.monotonic()
+        try:
+            market_data = self._reader.read()
+            context.metadata["calibration"] = {
+                "market_data": market_data,
+                "status": "completed",
+                "elapsed_seconds": time.monotonic() - t_start,
+            }
+            logger.info("CalibrationStep: completed in %.2fs", time.monotonic() - t_start)
+        except Exception as exc:
+            context.errors.append(f"CalibrationStep failed: {exc}")
+            context.metadata["calibration"] = {"status": "failed", "error": str(exc)}
+            logger.exception("CalibrationStep: failed")
+        return context
+
+
+class PostProcessStep:
+    """Run post-processors on the simulation result.
+
+    Bridges ``SimulationResult`` (engine output) to
+    ``SimulationResults`` (post-processing input), applies the
+    configured processors, and stores the ``ProcessedResults``.
+
+    Attributes:
+        name: Step identifier (``"post_process"``).
+    """
+
+    name: str = "post_process"
+
+    def execute(self, context: PipelineContext) -> PipelineContext:
+        """Execute post-processors on the simulation result.
+
+        Args:
+            context: Pipeline context with a populated ``result``.
+
+        Returns:
+            Context with ``metadata["post_processed"]`` populated.
+        """
+        from hyesg.engine.output import SimulationResult
+        from hyesg.engine.post_processing.protocol import SimulationResults
+        from hyesg.engine.post_processing.recipes import PostProcessingRecipe
+        from hyesg.engine.simulator import _build_post_processors
+
+        if context.result is None:
+            context.errors.append("PostProcessStep: no result to process")
+            return context
+
+        if not isinstance(context.result, SimulationResult):
+            context.errors.append("PostProcessStep: result is not a SimulationResult")
+            return context
+
+        processors = _build_post_processors(context.config.post_processors)
+        if not processors:
+            return context
+
+        sim_results = SimulationResults(
+            paths=dict(context.result.outputs),
+            metadata=dict(context.result.metadata),
+            time_grid=context.result.time_grid,
+            n_trials=context.result.n_trials,
+            n_steps=context.result.n_steps,
+        )
+
+        recipe = PostProcessingRecipe(processors)
+        processed = recipe.execute(sim_results)
+        context.metadata["post_processed"] = processed
         return context
 
 

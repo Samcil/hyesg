@@ -8,6 +8,7 @@ is bound via ``functools.partial``, NOT included in the scan carry dict.
 from __future__ import annotations
 
 import functools
+import logging
 import time
 from collections import defaultdict
 from typing import Any, Callable
@@ -18,6 +19,7 @@ from jax import Array
 
 from hyesg.config.models import (
     CorrelationEntry,
+    PostProcessorConfig,
     RegimeConfig,
     SimulationConfig,
     TimeGridConfig,
@@ -27,6 +29,80 @@ from hyesg.core.types import OutputSpec
 from hyesg.engine.correlation import cholesky_factor, correlate_shocks
 from hyesg.engine.output import SimulationResult, combine_regime_results, extract_outputs
 from hyesg.engine.rng import create_rng_keys
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Post-processor factory
+# ---------------------------------------------------------------------------
+
+_POST_PROCESSOR_REGISTRY: dict[str, type] = {}
+
+
+def _ensure_post_processor_registry() -> None:
+    """Lazily populate the post-processor registry."""
+    if _POST_PROCESSOR_REGISTRY:
+        return
+    from hyesg.engine.post_processing.processors import (
+        EquilibriumSwapRateProcessor,
+        LSMCRegressionProcessor,
+        SABRCalibrationProcessor,
+    )
+
+    _POST_PROCESSOR_REGISTRY.update(
+        {
+            "sabr": SABRCalibrationProcessor,
+            "lsmc": LSMCRegressionProcessor,
+            "equilibrium_swap_rate": EquilibriumSwapRateProcessor,
+        }
+    )
+
+
+def _build_post_processors(
+    configs: list[PostProcessorConfig],
+) -> list[Any]:
+    """Create processor instances from ``PostProcessorConfig`` entries.
+
+    Args:
+        configs: List of post-processor configs.
+
+    Returns:
+        List of instantiated post-processor objects.
+    """
+    if not configs:
+        return []
+    _ensure_post_processor_registry()
+    processors: list[Any] = []
+    for cfg in configs:
+        cls = _POST_PROCESSOR_REGISTRY.get(cfg.type)
+        if cls is None:
+            logger.warning("Unknown post-processor type: %s", cfg.type)
+            continue
+        processors.append(cls(**cfg.params))
+    return processors
+
+
+def to_simulation_results(result: SimulationResult) -> Any:
+    """Adapt ``SimulationResult`` to ``SimulationResults`` for post-processing.
+
+    Bridges the engine output format to the post-processing input format.
+
+    Args:
+        result: Engine ``SimulationResult`` with nested outputs dict.
+
+    Returns:
+        ``SimulationResults`` instance ready for post-processors.
+    """
+    from hyesg.engine.post_processing.protocol import SimulationResults
+
+    return SimulationResults(
+        paths=dict(result.outputs),
+        metadata=dict(result.metadata),
+        time_grid=result.time_grid,
+        n_trials=result.n_trials,
+        n_steps=result.n_steps,
+    )
 
 
 def _resolve_params(model_cls: type, params: Any) -> Any:
@@ -405,6 +481,38 @@ class Simulator:
             time_grid=self._time_points,
             metadata=metadata,
         )
+
+    def run_with_post_processing(
+        self,
+        *,
+        seed: int = 42,
+        n_trials: int | None = None,
+        regime_idx: int = 0,
+    ) -> tuple[SimulationResult, Any]:
+        """Run simulation then apply configured post-processors.
+
+        This is the full pipeline: simulate → adapt → post-process.
+
+        Args:
+            seed: RNG seed for reproducibility.
+            n_trials: Override for trial count.
+            regime_idx: Which regime to simulate.
+
+        Returns:
+            Tuple of (raw ``SimulationResult``, ``ProcessedResults`` or None).
+        """
+        result = self.run(seed=seed, n_trials=n_trials, regime_idx=regime_idx)
+
+        processors = _build_post_processors(self._config.post_processors)
+        if not processors:
+            return result, None
+
+        from hyesg.engine.post_processing.recipes import PostProcessingRecipe
+
+        sim_results = to_simulation_results(result)
+        recipe = PostProcessingRecipe(processors)
+        processed = recipe.execute(sim_results)
+        return result, processed
 
     def run_all_regimes(self) -> SimulationResult:
         """Run all regimes and combine results.
