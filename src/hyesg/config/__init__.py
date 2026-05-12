@@ -13,6 +13,15 @@ from hyesg.config.calibration_params import (
     RegimeDefinition,
     YieldCurveSpec,
 )
+from hyesg.config.factor_equity import (
+    UK_FACTOR_OVERRIDES,
+    US_FACTOR_OVERRIDES,
+    EquityCurveSet,
+    FactorEquityOverrides,
+    FactorType,
+    create_factor_equity_blending_curve,
+    derive_factor_equity_curves,
+)
 from hyesg.config.fee_wrappers import FEE_WRAPPERS, get_fee_wrappers
 from hyesg.config.fund_builder import FundBuilder
 from hyesg.config.fund_catalogue import FundCatalogue, build_default_catalogue
@@ -64,6 +73,14 @@ __all__ = [
     "YieldCurveSpec",
     # builder
     "SimulationBuilder",
+    # factor equity
+    "EquityCurveSet",
+    "FactorEquityOverrides",
+    "FactorType",
+    "UK_FACTOR_OVERRIDES",
+    "US_FACTOR_OVERRIDES",
+    "create_factor_equity_blending_curve",
+    "derive_factor_equity_curves",
     # fund catalogue
     "FEE_WRAPPERS",
     "FundBuilder",
