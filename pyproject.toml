@@ -27,6 +27,9 @@ io = [
     "h5py>=3.10",
     "xarray>=2024.1",
 ]
+calibration = [
+    "openpyxl>=3.1",
+]
 
 [build-system]
 requires = ["hatchling"]
