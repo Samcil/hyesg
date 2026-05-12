@@ -73,10 +73,83 @@ class TestConstants:
         assert constants.DEFAULT_RNG_SEED == 27
 
     def test_all_constants_positive(self) -> None:
-        """All numerical tolerances should be positive."""
+        """All numerical tolerances should be positive (except regime seeds)."""
+        negative_ok = {
+            "REGIME_CHI2_SEED_FACTOR",
+            "REGIME_CHI2_SEED_OFFSET",
+        }
         for name in dir(constants):
             if name.startswith("_"):
                 continue
             val = getattr(constants, name)
             if isinstance(val, (int, float)):
+                if name in negative_ok:
+                    continue
                 assert val > 0, f"{name} should be positive"
+
+    # --- New constants ---
+
+    def test_gauss_kronrod_bounds_tol(self) -> None:
+        assert constants.GAUSS_KRONROD_BOUNDS_TOL == 1e-15
+
+    def test_gauss_kronrod_default_tol(self) -> None:
+        assert constants.GAUSS_KRONROD_DEFAULT_TOL == 1e-8
+
+    def test_gauss_kronrod_max_depth(self) -> None:
+        assert isinstance(constants.GAUSS_KRONROD_MAX_DEPTH, int)
+        assert constants.GAUSS_KRONROD_MAX_DEPTH == 20
+
+    def test_time_consistency_round(self) -> None:
+        assert constants.TIME_CONSISTENCY_ROUND == 1e-15
+
+    def test_time_consistency_places(self) -> None:
+        assert isinstance(constants.TIME_CONSISTENCY_PLACES, int)
+        assert constants.TIME_CONSISTENCY_PLACES == 15
+
+    def test_initial_yc_target_coincidence_tol(self) -> None:
+        assert constants.INITIAL_YC_TARGET_COINCIDENCE_TOL == 1e-5
+
+    def test_akima_csv_round_places(self) -> None:
+        assert isinstance(constants.AKIMA_CSV_ROUND_PLACES, int)
+        assert constants.AKIMA_CSV_ROUND_PLACES == 12
+
+    def test_limit_epsilon(self) -> None:
+        assert constants.LIMIT_EPSILON == 1e-8
+
+    def test_lm_default_max_iter(self) -> None:
+        assert isinstance(constants.LM_DEFAULT_MAX_ITER, int)
+        assert constants.LM_DEFAULT_MAX_ITER == 50
+
+    def test_lm_default_tol(self) -> None:
+        assert constants.LM_DEFAULT_TOL == 1e-8
+
+    def test_lm_default_damping(self) -> None:
+        assert constants.LM_DEFAULT_DAMPING == 0.01
+
+    def test_bond_ytm_tol(self) -> None:
+        assert constants.BOND_YTM_TOL == 1e-10
+
+    def test_bond_ytm_max_iter(self) -> None:
+        assert isinstance(constants.BOND_YTM_MAX_ITER, int)
+        assert constants.BOND_YTM_MAX_ITER == 100
+
+    def test_credit_recovery_quadrature_tol(self) -> None:
+        assert constants.CREDIT_RECOVERY_QUADRATURE_TOL == 1e-8
+
+    def test_regime_trial_ordering_seed_factor(self) -> None:
+        assert isinstance(
+            constants.REGIME_TRIAL_ORDERING_SEED_FACTOR, int
+        )
+        assert constants.REGIME_TRIAL_ORDERING_SEED_FACTOR == 1000003
+
+    def test_regime_copula_seed_offset(self) -> None:
+        assert isinstance(constants.REGIME_COPULA_SEED_OFFSET, int)
+        assert constants.REGIME_COPULA_SEED_OFFSET == 13
+
+    def test_regime_chi2_seed_factor(self) -> None:
+        assert isinstance(constants.REGIME_CHI2_SEED_FACTOR, int)
+        assert constants.REGIME_CHI2_SEED_FACTOR == -104723
+
+    def test_regime_chi2_seed_offset(self) -> None:
+        assert isinstance(constants.REGIME_CHI2_SEED_OFFSET, int)
+        assert constants.REGIME_CHI2_SEED_OFFSET == -1000003

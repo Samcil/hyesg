@@ -42,3 +42,37 @@ CIR_ZERO_H_THRESHOLD: float = 1e-8
 
 # Default RNG seed
 DEFAULT_RNG_SEED: int = 27
+
+# Gauss-Kronrod quadrature
+GAUSS_KRONROD_BOUNDS_TOL: float = 1e-15
+GAUSS_KRONROD_DEFAULT_TOL: float = 1e-8
+GAUSS_KRONROD_MAX_DEPTH: int = 20
+
+# Time consistency
+TIME_CONSISTENCY_ROUND: float = 1e-15
+TIME_CONSISTENCY_PLACES: int = 15
+
+# Yield curve calibration
+INITIAL_YC_TARGET_COINCIDENCE_TOL: float = 1e-5
+AKIMA_CSV_ROUND_PLACES: int = 12
+
+# Numerical limits
+LIMIT_EPSILON: float = 1e-8
+
+# LM optimizer defaults
+LM_DEFAULT_MAX_ITER: int = 50
+LM_DEFAULT_TOL: float = 1e-8
+LM_DEFAULT_DAMPING: float = 0.01
+
+# Bond pricing
+BOND_YTM_TOL: float = 1e-10
+BOND_YTM_MAX_ITER: int = 100
+
+# Credit
+CREDIT_RECOVERY_QUADRATURE_TOL: float = 1e-8
+
+# Regime proportional ordering
+REGIME_TRIAL_ORDERING_SEED_FACTOR: int = 1000003
+REGIME_COPULA_SEED_OFFSET: int = 13
+REGIME_CHI2_SEED_FACTOR: int = -104723
+REGIME_CHI2_SEED_OFFSET: int = -1000003
