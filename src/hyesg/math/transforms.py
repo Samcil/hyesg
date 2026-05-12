@@ -233,3 +233,52 @@ def change_compounding(
     growth_annual = (1.0 + rate * input_period) ** (1.0 / input_period)
     # Convert to output convention
     return (growth_annual**output_period - 1.0) / output_period
+
+
+# ─── Scalar helpers ───
+
+
+def continuously_compounded_to_zcbp(rate: float, t: float) -> float:
+    """Convert continuously compounded rate to zero-coupon bond price.
+
+    P(t) = exp(-rate × t)
+
+    Args:
+        rate: Continuously compounded interest rate.
+        t: Time to maturity.
+
+    Returns:
+        Zero-coupon bond price.
+    """
+    return math.exp(-rate * t)
+
+
+def annually_compounded_to_inv_zcbp(rate: float, t: float) -> float:
+    """Convert annually compounded rate to accumulation factor.
+
+    1/P(t) = (1 + rate)^t
+
+    Args:
+        rate: Annually compounded interest rate.
+        t: Time to maturity.
+
+    Returns:
+        Inverse ZCB price (accumulation factor).
+    """
+    return (1.0 + rate) ** t
+
+
+def spot_to_inverse_zcbp(spot: ParametricCurve) -> ParametricCurve:
+    """Convert spot rate curve to accumulation factor curve.
+
+    1/P(t) = exp(t × spot(t))
+
+    This is the inverse of inverse_zcbp_to_spot.
+
+    Args:
+        spot: Spot rate curve.
+
+    Returns:
+        Inverse ZCB price (accumulation factor) curve.
+    """
+    return (LinearCurve() * spot).exp()

@@ -20,6 +20,7 @@ from hyesg.math.gaussian_helpers import (
     variance_integral_ou,
 )
 from hyesg.math.quadrature import gauss_kronrod_integrate
+from hyesg.math.seasonality import FourierSeasonalityAdjuster
 from hyesg.math.pricing import (
     black_call,
     black_implied_vol,
@@ -31,13 +32,16 @@ from hyesg.math.pricing import (
     sabr_implied_vol,
 )
 from hyesg.math.transforms import (
+    annually_compounded_to_inv_zcbp,
     change_compounding,
+    continuously_compounded_to_zcbp,
     forward_to_inverse_zcbp,
     forward_to_spot,
     forward_to_zcbp,
     inverse_zcbp_to_forward,
     inverse_zcbp_to_spot,
     spot_to_forward,
+    spot_to_inverse_zcbp,
     spot_to_zcbp,
     zcbp_to_forward,
     zcbp_to_spot,
@@ -71,14 +75,19 @@ __all__ = [
     "bond_yield",
     "sabr_implied_vol",
     # Transforms
+    "annually_compounded_to_inv_zcbp",
     "change_compounding",
+    "continuously_compounded_to_zcbp",
     "forward_to_inverse_zcbp",
     "forward_to_spot",
     "forward_to_zcbp",
     "inverse_zcbp_to_forward",
     "inverse_zcbp_to_spot",
     "spot_to_forward",
+    "spot_to_inverse_zcbp",
     "spot_to_zcbp",
     "zcbp_to_forward",
     "zcbp_to_spot",
+    # Seasonality
+    "FourierSeasonalityAdjuster",
 ]
