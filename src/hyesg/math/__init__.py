@@ -28,6 +28,14 @@ from hyesg.math.cir_formulas import (
     cir_variance,
     cir_zcb_price,
 )
+from hyesg.math.g2pp_analytics import (
+    G2PPAnalyticParams,
+    forward_cpi,
+    g2pp_zcb_price,
+    il_zcb_price,
+    yyiis_rate,
+    zciis_rate,
+)
 from hyesg.math.gaussian_helpers import (
     b_func,
     b_over_dt,
@@ -115,4 +123,11 @@ __all__ = [
     "zcbp_to_spot",
     # Seasonality
     "FourierSeasonalityAdjuster",
+    # G2++ analytics
+    "G2PPAnalyticParams",
+    "forward_cpi",
+    "g2pp_zcb_price",
+    "il_zcb_price",
+    "yyiis_rate",
+    "zciis_rate",
 ]

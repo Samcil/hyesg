@@ -48,6 +48,8 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "TCH"]
 # F722/F821/UP037: jaxtyping Float[Array, "dim"] dimension syntax
 "src/hyesg/math/*.py" = ["N802", "N803", "N806", "F722", "F821"]
 "tests/math/*.py" = ["N806"]
+"src/hyesg/calibration/sabr.py" = ["N803", "N806"]
+"tests/calibration/test_sabr.py" = ["N806"]
 "src/hyesg/core/types.py" = ["F722", "F821", "UP037"]
 "src/hyesg/core/protocols.py" = ["F722", "F821", "UP037", "N803"]
 

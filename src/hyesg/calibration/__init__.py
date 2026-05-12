@@ -23,6 +23,12 @@ from hyesg.calibration.optimizer import (
 )
 from hyesg.calibration.protocols import ObjectiveFunction, Optimizer
 from hyesg.calibration.result import CalibrationResult, OptimizationResult
+from hyesg.calibration.sabr import (
+    SabrCalibrator,
+    SabrTermStructure,
+    nelson_siegel_tanh,
+    sabr_implied_vol_hagan,
+)
 from hyesg.calibration.yield_curves import (
     YIELD_CURVE_KNOTS,
     YieldCurveCalibrationResult,
@@ -60,4 +66,9 @@ __all__ = [
     "build_real_yield_curve",
     "calibrate_yield_curve",
     "fisher_real_rate",
+    # SABR calibration
+    "SabrCalibrator",
+    "SabrTermStructure",
+    "nelson_siegel_tanh",
+    "sabr_implied_vol_hagan",
 ]
