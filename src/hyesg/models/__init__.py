@@ -19,21 +19,45 @@ from hyesg.models.credit.credit import Credit
 from hyesg.models.short_rates.g2pp import G2PP
 from hyesg.models.short_rates.vasicek import Vasicek
 from hyesg.models.volatility.cir_vol import CIRVolatility
+from hyesg.models.currencies import (
+    BaseNominal,
+    CurrencyAnalogy,
+    DividendYield,
+    EquityAndDividendYield,
+    ExchangeRateAnalogyChain,
+    FactorWedge,
+    NominalAndExchangeRate,
+    RealRate,
+    RealRateAndInflation,
+    StandardNominal,
+    WedgeCurrencyAndInflationWedge,
+)
 
 __all__ = [
+    "BaseNominal",
     "CIR",
     "CIR2PlusPlus",
     "CIRPlusPlus",
     "CIRVolatility",
     "ConstantIntensityJumpModel",
     "Credit",
+    "CurrencyAnalogy",
     "Deterministic",
+    "DividendYield",
     "Equity",
+    "EquityAndDividendYield",
+    "ExchangeRateAnalogyChain",
+    "FactorWedge",
     "FXRate",
     "G1PP",
     "G2PP",
     "Inflation",
+    "NominalAndExchangeRate",
+    "RealRate",
+    "RealRateAndInflation",
+    "StandardNominal",
     "StochasticIntensityJumpModel",
     "Vasicek",
+    "WedgeCurrencyAndInflationWedge",
     "ZeroJumpModel",
 ]
