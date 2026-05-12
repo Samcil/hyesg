@@ -2,6 +2,20 @@
 
 from __future__ import annotations
 
+from hyesg.math.bond_analytics import (
+    BondMetrics,
+    compute_bond_metrics,
+    dv01,
+    elapsed_coupons,
+    future_coupons,
+    macaulay_duration,
+    modified_duration,
+    next_coupon,
+    yield_to_maturity,
+)
+from hyesg.math.bond_analytics import (
+    convexity as discrete_convexity,
+)
 from hyesg.math.cir_formulas import (
     cir_A,
     cir_B,
@@ -19,8 +33,6 @@ from hyesg.math.gaussian_helpers import (
     b_over_dt,
     variance_integral_ou,
 )
-from hyesg.math.quadrature import gauss_kronrod_integrate
-from hyesg.math.seasonality import FourierSeasonalityAdjuster
 from hyesg.math.pricing import (
     black_call,
     black_implied_vol,
@@ -31,6 +43,8 @@ from hyesg.math.pricing import (
     bond_yield,
     sabr_implied_vol,
 )
+from hyesg.math.quadrature import gauss_kronrod_integrate
+from hyesg.math.seasonality import FourierSeasonalityAdjuster
 from hyesg.math.transforms import (
     annually_compounded_to_inv_zcbp,
     change_compounding,
@@ -74,6 +88,17 @@ __all__ = [
     "bond_price",
     "bond_yield",
     "sabr_implied_vol",
+    # Bond analytics (discrete compounding)
+    "BondMetrics",
+    "compute_bond_metrics",
+    "discrete_convexity",
+    "dv01",
+    "elapsed_coupons",
+    "future_coupons",
+    "macaulay_duration",
+    "modified_duration",
+    "next_coupon",
+    "yield_to_maturity",
     # Transforms
     "annually_compounded_to_inv_zcbp",
     "change_compounding",
