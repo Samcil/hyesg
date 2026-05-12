@@ -41,6 +41,61 @@ from hyesg.engine.correlation import correlate_shocks
 
 
 # ---------------------------------------------------------------------------
+# Chi-squared & Student-t sampling
+# ---------------------------------------------------------------------------
+
+
+def chi_squared_sample(
+    key: Array,
+    df: int,
+    shape: tuple[int, ...] = (),
+) -> Array:
+    """Chi-squared sample via sum of squared normals.
+
+    Generates ``chi²(df)`` samples by summing ``df`` squared
+    independent standard-normal variates:
+    ``chi²(df) = Σ_{i=1}^{df} z_i²``  where ``z_i ~ N(0, 1)``.
+
+    Args:
+        key: JAX PRNGKey for randomness.
+        df: Degrees of freedom (positive integer).
+        shape: Output batch shape.
+
+    Returns:
+        Array of shape ``shape`` with chi-squared samples.
+    """
+    normals = jax.random.normal(key, shape=(*shape, df))
+    return jnp.sum(normals**2, axis=-1)
+
+
+def student_t_sample(
+    normal_key: Array,
+    chi2_key: Array,
+    df: int,
+    shape: tuple[int, ...] = (),
+) -> Array:
+    """Student-t sample: ``t = z × √(df / χ²)``.
+
+    Generates Student-t variates from independent normal and
+    chi-squared samples:
+    ``z ~ N(0, 1)``,  ``χ² ~ χ²(df)``,  ``t = z × √(df / χ²)``.
+
+    Args:
+        normal_key: PRNGKey for normal samples.
+        chi2_key: PRNGKey for chi-squared samples.
+        df: Degrees of freedom (positive integer, > 2 for
+            finite variance).
+        shape: Output batch shape.
+
+    Returns:
+        Array of shape ``shape`` with Student-t samples.
+    """
+    z = jax.random.normal(normal_key, shape=shape)
+    chi2 = chi_squared_sample(chi2_key, df, shape)
+    return z * jnp.sqrt(df / chi2)
+
+
+# ---------------------------------------------------------------------------
 # Student-t CDF / PPF helpers (JAX lacks jax.scipy.stats.t.cdf)
 # ---------------------------------------------------------------------------
 

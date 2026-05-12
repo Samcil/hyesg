@@ -97,6 +97,63 @@ def split_shocks(raw_shocks: Array, shock_sizes: list[int]) -> list[Array]:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# PRNG stream manager (C# parity)
+# ---------------------------------------------------------------------------
+
+
+class PRNGStreamManager:
+    """Manages 3 PRNG streams derived from a master seed.
+
+    Matches the C# ESG engine's stream derivation exactly:
+
+    - **normals_seed** = seed (Gaussian shocks)
+    - **copula_seed** = seed × 1000003 + 13 (uniform copula samples)
+    - **chi_squared_seed** = seed × (−104723) − 1000003
+      (Student-t chi-squared variates)
+
+    All derived seeds are wrapped to 32-bit unsigned integers before
+    being passed to ``jax.random.PRNGKey``.
+
+    Args:
+        master_seed: Integer seed from the simulation configuration.
+    """
+
+    def __init__(self, master_seed: int) -> None:
+        self.normals_key = jax.random.PRNGKey(master_seed)
+        copula_seed = master_seed * 1000003 + 13
+        self.copula_key = jax.random.PRNGKey(copula_seed & 0xFFFFFFFF)
+        chi2_seed = master_seed * (-104723) - 1000003
+        self.chi_squared_key = jax.random.PRNGKey(chi2_seed & 0xFFFFFFFF)
+
+    def get_trial_keys(
+        self, trial_id: int
+    ) -> tuple[Array, Array, Array]:
+        """Get per-trial keys using ``fold_in`` (JAX equivalent of SkipForward).
+
+        Each call produces three independent keys for one trial.  The
+        keys are derived deterministically from the master streams so
+        that trial ordering does not affect reproducibility.
+
+        Args:
+            trial_id: Zero-based trial index.
+
+        Returns:
+            Tuple of ``(normals_key, copula_key, chi_squared_key)``
+            for the requested trial.
+        """
+        return (
+            jax.random.fold_in(self.normals_key, trial_id),
+            jax.random.fold_in(self.copula_key, trial_id),
+            jax.random.fold_in(self.chi_squared_key, trial_id),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Batch generation
+# ---------------------------------------------------------------------------
+
+
 def generate_trial_shocks(
     seed: int,
     n_trials: int,
