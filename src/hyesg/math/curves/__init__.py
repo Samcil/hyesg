@@ -36,12 +36,20 @@ from hyesg.math.curves.parametric import (
     NelsonSiegelCurve,
 )
 from hyesg.math.curves.primitives import (
+    BlendedCurve,
     ConstantCurve,
+    HorizontallyShiftedCurve,
     IdentityCurve,
+    IntegratedOverFixedIntervalCurve,
+    InverseParametricCurve,
     LinearCurve,
+    PiecewiseConstantCurve,
+    VerticallyShiftedCurve,
 )
 from hyesg.math.curves.protocol import ParametricCurve
+from hyesg.math.curves.sabr import SabrAtmVolCurve, SabrNuCurve, SabrRhoCurve
 from hyesg.math.curves.splines import AkimaCubicSpline, CubicSpline
+from hyesg.math.curves.surface import ParametricSurface
 
 __all__ = [
     # Protocol
@@ -50,6 +58,12 @@ __all__ = [
     "ConstantCurve",
     "LinearCurve",
     "IdentityCurve",
+    "PiecewiseConstantCurve",
+    "HorizontallyShiftedCurve",
+    "VerticallyShiftedCurve",
+    "InverseParametricCurve",
+    "BlendedCurve",
+    "IntegratedOverFixedIntervalCurve",
     # Operators
     "Added",
     "Multiplied",
@@ -78,4 +92,10 @@ __all__ = [
     "LinearBlend",
     "PolynomialBlend",
     "ConstantExtrapolation",
+    # SABR
+    "SabrAtmVolCurve",
+    "SabrNuCurve",
+    "SabrRhoCurve",
+    # Surface
+    "ParametricSurface",
 ]
