@@ -212,8 +212,8 @@ class TestFactorEquityOverrides:
 
 
 @pytest.fixture()
-def benchmark() -> EquityCurveSet:
-    """A representative benchmark equity curve set."""
+def benchmark_curves() -> EquityCurveSet:
+    """A representative benchmark_curves equity curve set."""
     return EquityCurveSet(
         dy_mu=ConstantCurve(0.038),
         vol_mu=ConstantCurve(0.18),
@@ -225,80 +225,80 @@ def benchmark() -> EquityCurveSet:
 class TestDeriveFactorEquityCurves:
     """Tests for the factory function."""
 
-    def test_pure_clone(self, benchmark: EquityCurveSet) -> None:
+    def test_pure_clone(self, benchmark_curves: EquityCurveSet) -> None:
         """No overrides → identical curves returned."""
         result = derive_factor_equity_curves(
-            benchmark, FactorEquityOverrides(),
+            benchmark_curves, FactorEquityOverrides(),
         )
         # Should be the same curve objects (identity, not copies)
-        assert result.dy_mu is benchmark.dy_mu
-        assert result.vol_mu is benchmark.vol_mu
-        assert result.mpr is benchmark.mpr
-        assert result.vol_x0 == benchmark.vol_x0
+        assert result.dy_mu is benchmark_curves.dy_mu
+        assert result.vol_mu is benchmark_curves.vol_mu
+        assert result.mpr is benchmark_curves.mpr
+        assert result.vol_x0 == benchmark_curves.vol_x0
 
-    def test_dy_override_short_horizon(self, benchmark: EquityCurveSet) -> None:
+    def test_dy_override_short_horizon(self, benchmark_curves: EquityCurveSet) -> None:
         """DY override dominates at short horizons (before blend region)."""
         overrides = FactorEquityOverrides(dy_mu=0.06)
-        result = derive_factor_equity_curves(benchmark, overrides)
+        result = derive_factor_equity_curves(benchmark_curves, overrides)
         # At t=0, weight=1 → uses adjusted DY (0.06)
         assert result.dy_mu.evaluate(0.0) == pytest.approx(0.06)
         assert result.dy_mu.evaluate(4.0) == pytest.approx(0.06)
 
-    def test_dy_override_long_horizon(self, benchmark: EquityCurveSet) -> None:
-        """DY override reverts to benchmark at long horizons."""
+    def test_dy_override_long_horizon(self, benchmark_curves: EquityCurveSet) -> None:
+        """DY override reverts to benchmark_curves at long horizons."""
         overrides = FactorEquityOverrides(dy_mu=0.06)
-        result = derive_factor_equity_curves(benchmark, overrides)
-        # At t=10, weight=0 → uses benchmark DY (0.038)
+        result = derive_factor_equity_curves(benchmark_curves, overrides)
+        # At t=10, weight=0 → uses benchmark_curves DY (0.038)
         assert result.dy_mu.evaluate(10.0) == pytest.approx(0.038)
 
     def test_dy_override_blended_at_midpoint(
-        self, benchmark: EquityCurveSet,
+        self, benchmark_curves: EquityCurveSet,
     ) -> None:
         """DY at blend midpoint (t=6) is a weighted average."""
         overrides = FactorEquityOverrides(dy_mu=0.06)
-        result = derive_factor_equity_curves(benchmark, overrides)
+        result = derive_factor_equity_curves(benchmark_curves, overrides)
         # t=6 → blend_t = 0.5 → weight = 0.5^2 = 0.25
         # blended = 0.25 * 0.06 + 0.75 * 0.038 = 0.015 + 0.0285 = 0.0435
         assert result.dy_mu.evaluate(6.0) == pytest.approx(0.0435)
 
-    def test_vol_multiplier(self, benchmark: EquityCurveSet) -> None:
+    def test_vol_multiplier(self, benchmark_curves: EquityCurveSet) -> None:
         """Vol multiplier scales Mu and X0."""
         overrides = FactorEquityOverrides(vol_multiplier=0.8)
-        result = derive_factor_equity_curves(benchmark, overrides)
+        result = derive_factor_equity_curves(benchmark_curves, overrides)
         # X0 is directly scaled
         assert result.vol_x0 == pytest.approx(0.18 * 0.8)
         # At t=0 (weight=1): uses adjusted vol (0.8 * 0.18 = 0.144)
         assert result.vol_mu.evaluate(0.0) == pytest.approx(0.144)
-        # At t=10 (weight=0): reverts to benchmark (0.18)
+        # At t=10 (weight=0): reverts to benchmark_curves (0.18)
         assert result.vol_mu.evaluate(10.0) == pytest.approx(0.18)
 
-    def test_mpr_multiplier(self, benchmark: EquityCurveSet) -> None:
+    def test_mpr_multiplier(self, benchmark_curves: EquityCurveSet) -> None:
         """MPR multiplier scales the curve and blends back."""
         overrides = FactorEquityOverrides(mpr_multiplier=1.1)
-        result = derive_factor_equity_curves(benchmark, overrides)
+        result = derive_factor_equity_curves(benchmark_curves, overrides)
         # At t=0 (weight=1): 1.1 * 0.30 = 0.33
         assert result.mpr.evaluate(0.0) == pytest.approx(0.33)
         # At t=10 (weight=0): reverts to 0.30
         assert result.mpr.evaluate(10.0) == pytest.approx(0.30)
 
-    def test_combined_overrides(self, benchmark: EquityCurveSet) -> None:
+    def test_combined_overrides(self, benchmark_curves: EquityCurveSet) -> None:
         """Multiple overrides are applied independently."""
         overrides = FactorEquityOverrides(
             vol_multiplier=0.8, mpr_multiplier=1.15,
         )
-        result = derive_factor_equity_curves(benchmark, overrides)
-        # Both should be blended curves (not the benchmark originals)
-        assert result.vol_mu is not benchmark.vol_mu
-        assert result.mpr is not benchmark.mpr
+        result = derive_factor_equity_curves(benchmark_curves, overrides)
+        # Both should be blended curves (not the benchmark_curves originals)
+        assert result.vol_mu is not benchmark_curves.vol_mu
+        assert result.mpr is not benchmark_curves.mpr
         # DY should remain unchanged
-        assert result.dy_mu is benchmark.dy_mu
+        assert result.dy_mu is benchmark_curves.dy_mu
 
     def test_all_uk_factors_produce_valid_curves(
-        self, benchmark: EquityCurveSet,
+        self, benchmark_curves: EquityCurveSet,
     ) -> None:
         """All 7 UK factor types produce evaluable curve sets."""
         for factor_type, overrides in UK_FACTOR_OVERRIDES.items():
-            result = derive_factor_equity_curves(benchmark, overrides)
+            result = derive_factor_equity_curves(benchmark_curves, overrides)
             # All curves should be evaluable at arbitrary horizons
             for t in [0.0, 3.0, 6.0, 10.0, 50.0]:
                 assert isinstance(result.dy_mu.evaluate(t), float)
@@ -306,17 +306,17 @@ class TestDeriveFactorEquityCurves:
                 assert isinstance(result.mpr.evaluate(t), float)
 
     def test_all_us_factors_produce_valid_curves(
-        self, benchmark: EquityCurveSet,
+        self, benchmark_curves: EquityCurveSet,
     ) -> None:
         """All 7 US factor types produce evaluable curve sets."""
         for factor_type, overrides in US_FACTOR_OVERRIDES.items():
-            result = derive_factor_equity_curves(benchmark, overrides)
+            result = derive_factor_equity_curves(benchmark_curves, overrides)
             for t in [0.0, 3.0, 6.0, 10.0, 50.0]:
                 assert isinstance(result.dy_mu.evaluate(t), float)
                 assert isinstance(result.vol_mu.evaluate(t), float)
                 assert isinstance(result.mpr.evaluate(t), float)
 
-    def test_custom_blend_region(self, benchmark: EquityCurveSet) -> None:
+    def test_custom_blend_region(self, benchmark_curves: EquityCurveSet) -> None:
         """Custom blend_start/blend_end are respected."""
         overrides = FactorEquityOverrides(
             mpr_multiplier=1.5,
@@ -324,10 +324,10 @@ class TestDeriveFactorEquityCurves:
             blend_end=15.0,
             blend_strength=1.0,
         )
-        result = derive_factor_equity_curves(benchmark, overrides)
+        result = derive_factor_equity_curves(benchmark_curves, overrides)
         # Factor dominates until year 10
         assert result.mpr.evaluate(9.0) == pytest.approx(0.45)
-        # Benchmark restored after year 15
+        # benchmark_curves restored after year 15
         assert result.mpr.evaluate(16.0) == pytest.approx(0.30)
 
 

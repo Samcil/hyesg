@@ -123,14 +123,14 @@ class TestCreditSpec:
         assert cs.rating == CreditClass.AA
         assert cs.recovery_type == RecoveryType.FACE_VALUE
         assert cs.recovery_rate == 0.4
-        assert cs.liquidity == Liquidity.LIQUID
+        assert cs.liquidity == Liquidity.HIGH
 
     def test_custom(self) -> None:
         cs = CreditSpec(
             rating=CreditClass.BBB,
             recovery_type=RecoveryType.MARKET_VALUE,
             recovery_rate=0.3,
-            liquidity=Liquidity.ILLIQUID,
+            liquidity=Liquidity.LOW,
         )
         assert cs.rating == CreditClass.BBB
         assert cs.recovery_rate == 0.3

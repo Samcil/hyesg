@@ -40,11 +40,12 @@ class TestCreditClass:
 
 class TestLiquidity:
     def test_values(self) -> None:
-        assert Liquidity.LIQUID.value == "liquid"
-        assert Liquidity.ILLIQUID.value == "illiquid"
+        assert Liquidity.HIGH.value == "high"
+        assert Liquidity.MEDIUM.value == "medium"
+        assert Liquidity.LOW.value == "low"
 
     def test_member_count(self) -> None:
-        assert len(Liquidity) == 2
+        assert len(Liquidity) == 3
 
 
 class TestRecoveryType:
