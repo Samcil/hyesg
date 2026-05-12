@@ -16,6 +16,11 @@ from hyesg.models.short_rates.cirpp import CIRPlusPlus
 from hyesg.models.short_rates.deterministic import Deterministic
 from hyesg.models.short_rates.g1pp import G1PP
 from hyesg.models.credit.credit import Credit
+from hyesg.models.salary.salary_wedge import (
+    SalaryWedgeModel,
+    SalaryWedgeParams,
+    SalaryWedgeState,
+)
 from hyesg.models.short_rates.g2pp import G2PP
 from hyesg.models.short_rates.vasicek import Vasicek
 from hyesg.models.volatility.cir_vol import CIRVolatility
@@ -55,6 +60,9 @@ __all__ = [
     "NominalAndExchangeRate",
     "RealRate",
     "RealRateAndInflation",
+    "SalaryWedgeModel",
+    "SalaryWedgeParams",
+    "SalaryWedgeState",
     "StandardNominal",
     "StochasticIntensityJumpModel",
     "Vasicek",
