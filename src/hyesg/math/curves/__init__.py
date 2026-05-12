@@ -12,6 +12,7 @@ from hyesg.math.curves.blending import (
     LinearBlend,
     PolynomialBlend,
     PolynomialBlendingCurve,
+    PowerBlend,
     SmoothConstantExtrapolation,
 )
 from hyesg.math.curves.operators import (
@@ -94,6 +95,7 @@ __all__ = [
     "LinearBlend",
     "PolynomialBlend",
     "PolynomialBlendingCurve",
+    "PowerBlend",
     "ConstantExtrapolation",
     "SmoothConstantExtrapolation",
     # SABR

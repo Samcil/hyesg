@@ -29,11 +29,13 @@ from hyesg.core.types import CIRState, ShockConfig
 from hyesg.math.cir_formulas import (
     cir_A,
     cir_B,
+    cir_euler_step,
     cir_forward_rate,
     cir_integral_phi,
     cir_phi_from_curves,
 )
 from hyesg.math.transforms import forward_to_zcbp
+from hyesg.outputs import OutputName
 
 if TYPE_CHECKING:
     from hyesg.config.params import CIRParams
@@ -172,17 +174,14 @@ class CIRPlusPlus:
 
         dz = shocks[0]
         x = state.x
-        drift = alpha * (mu - x) * dt
-        diffusion = sigma * jnp.sqrt(jnp.maximum(x, 0.0) * dt) * dz
-        x_new = x + drift + diffusion
-        state_var = jnp.maximum(x_new, 0.0)
+        x_new, state_var = cir_euler_step(x, alpha, mu, sigma, dt, dz)
 
         t_new = t + dt
         phi_new = self._phi(t_new)
         short_rate = state_var + phi_new
 
         new_state = CIRState(x=x_new, state_var=state_var, short_rate=short_rate)
-        outputs = {"short_rate": short_rate}
+        outputs = {OutputName.SHORT_RATE: short_rate}
         return new_state, outputs
 
     # ─── ShortRateModel analytics ───

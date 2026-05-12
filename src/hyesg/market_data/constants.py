@@ -136,6 +136,27 @@ SALARY_WEDGE = SalaryWedgeConstants()
 
 # ── MPR lookup helper ────────────────────────────────────────────
 
+# Module-level lookup tables (built once, reused every call)
+_PROPERTY_MPR_MAP: dict[str, float] = {
+    "commercial": PROPERTY_MPR.commercial,
+    "private_rented_sector": PROPERTY_MPR.private_rented_sector,
+    "prs": PROPERTY_MPR.private_rented_sector,
+    "long_lease": PROPERTY_MPR.long_lease,
+    "social": PROPERTY_MPR.social,
+    "social_housing": PROPERTY_MPR.social,
+    "reits": PROPERTY_MPR.reits,
+    "global_reits": PROPERTY_MPR.reits,
+    "listed_infra": PROPERTY_MPR.listed_infra,
+    "listed_infrastructure": PROPERTY_MPR.listed_infra,
+    "unlisted_infra": PROPERTY_MPR.unlisted_infra,
+    "unlisted_infrastructure": PROPERTY_MPR.unlisted_infra,
+}
+
+_ALTERNATIVES_MPR_MAP: dict[str, float] = {
+    "private_equity": ALTERNATIVES_MPR.private_equity,
+    "commodities": ALTERNATIVES_MPR.commodities,
+}
+
 
 def get_market_price_of_risk(asset_name: str) -> float:
     """Look up the market price of risk for a named asset.
@@ -158,36 +179,14 @@ def get_market_price_of_risk(asset_name: str) -> float:
     """
     key = asset_name.strip().lower().replace(" ", "_")
 
-    # Property MPR lookup
-    _property_map: dict[str, float] = {
-        "commercial": PROPERTY_MPR.commercial,
-        "private_rented_sector": PROPERTY_MPR.private_rented_sector,
-        "prs": PROPERTY_MPR.private_rented_sector,
-        "long_lease": PROPERTY_MPR.long_lease,
-        "social": PROPERTY_MPR.social,
-        "social_housing": PROPERTY_MPR.social,
-        "reits": PROPERTY_MPR.reits,
-        "global_reits": PROPERTY_MPR.reits,
-        "listed_infra": PROPERTY_MPR.listed_infra,
-        "listed_infrastructure": PROPERTY_MPR.listed_infra,
-        "unlisted_infra": PROPERTY_MPR.unlisted_infra,
-        "unlisted_infrastructure": PROPERTY_MPR.unlisted_infra,
-    }
-
-    # Alternatives MPR lookup
-    _alternatives_map: dict[str, float] = {
-        "private_equity": ALTERNATIVES_MPR.private_equity,
-        "commodities": ALTERNATIVES_MPR.commodities,
-    }
-
-    if key in _property_map:
-        return _property_map[key]
-    if key in _alternatives_map:
-        return _alternatives_map[key]
+    if key in _PROPERTY_MPR_MAP:
+        return _PROPERTY_MPR_MAP[key]
+    if key in _ALTERNATIVES_MPR_MAP:
+        return _ALTERNATIVES_MPR_MAP[key]
     if key in ("aggregate_equity", "equity"):
         return AGGREGATE_EQUITY.market_price_of_risk
 
     raise KeyError(
         f"Unknown asset '{asset_name}'. Recognised names: "
-        f"{sorted(set(_property_map) | set(_alternatives_map) | {'aggregate_equity'})}"
+        f"{sorted(set(_PROPERTY_MPR_MAP) | set(_ALTERNATIVES_MPR_MAP) | {'aggregate_equity'})}"
     )

@@ -18,6 +18,8 @@ import jax.numpy as jnp
 
 from hyesg.core.registry import register_model
 from hyesg.core.types import ShockConfig, VolState
+from hyesg.math.cir_formulas import cir_euler_step
+from hyesg.outputs import OutputName
 
 if TYPE_CHECKING:
     from hyesg.math.curves.protocol import ParametricCurve
@@ -132,20 +134,15 @@ class CIRVolatility:
             mu_t = self._mu
 
         # CIR Euler step with floored diffusion
-        v_floor = jnp.maximum(v, 0.0)
-        drift = self._alpha * (mu_t - v) * dt
-        diffusion = self._sigma * jnp.sqrt(v_floor * dt) * dz
-        v_new = v + drift + diffusion
+        v_new, v_floor_new = cir_euler_step(v, self._alpha, mu_t, self._sigma, dt, dz)
 
-        # Floor for outputs
-        v_floor_new = jnp.maximum(v_new, 0.0)
         vol_new = jnp.sqrt(v_floor_new)
 
         new_state = VolState(variance=v_new, volatility=vol_new)
 
         outputs: dict[str, Any] = {
-            "variance": v_floor_new,
-            "volatility": vol_new,
+            OutputName.VARIANCE: v_floor_new,
+            OutputName.SIGMA: vol_new,
         }
 
         return new_state, outputs

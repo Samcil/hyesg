@@ -25,7 +25,14 @@ import jax.numpy as jnp
 
 from hyesg.core.registry import register_model
 from hyesg.core.types import CreditState, ShockConfig
-from hyesg.math.cir_formulas import cir_A, cir_B, cir_forward_rate, cir_zcb_price
+from hyesg.math.cir_formulas import (
+    cir_A,
+    cir_B,
+    cir_euler_step,
+    cir_forward_rate,
+    cir_zcb_price,
+)
+from hyesg.outputs import OutputName
 
 if TYPE_CHECKING:
     from hyesg.config.params import CreditParams
@@ -145,10 +152,7 @@ class Credit:
         y = state.intensity - psi_t
 
         # CIR Euler step with floored diffusion
-        drift = alpha * (mu - y) * dt
-        diffusion = sigma * jnp.sqrt(jnp.maximum(y, 0.0) * dt) * dz
-        y_new = y + drift + diffusion
-        y_new_floored = jnp.maximum(y_new, 0.0)
+        y_new, y_new_floored = cir_euler_step(y, alpha, mu, sigma, dt, dz)
 
         # New intensity = CIR factor + psi at new time
         psi_new = self._psi(t + dt)
@@ -164,9 +168,9 @@ class Credit:
             has_defaulted=state.has_defaulted,
         )
         outputs = {
-            "intensity": intensity_new,
-            "survival_probability": survival,
-            "cum_intensity": cum_intensity_new,
+            OutputName.INTENSITY: intensity_new,
+            OutputName.SURVIVAL_PROBABILITY: survival,
+            OutputName.CUM_INTENSITY: cum_intensity_new,
         }
         return new_state, outputs
 

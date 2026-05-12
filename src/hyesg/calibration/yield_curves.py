@@ -23,7 +23,11 @@ from typing import NamedTuple
 import jax.numpy as jnp
 from jax import Array
 
-from hyesg.math.curves.blending import ConstantExtrapolation, PolynomialBlend
+from hyesg.math.curves.blending import (
+    ConstantExtrapolation,
+    PolynomialBlend,
+    PowerBlend,
+)
 from hyesg.math.curves.primitives import ConstantCurve
 from hyesg.math.curves.protocol import ParametricCurve
 from hyesg.math.curves.splines import AkimaCubicSpline, CubicSpline
@@ -324,55 +328,6 @@ def calibrate_yield_curve(
 
 
 # ── RPI reform blending ──────────────────────────────────────────
-
-
-class PowerBlend(ParametricCurve):
-    """Power-law blending from curve f to curve g over [t_start, t_end].
-
-    Weight = ((x - t_start) / (t_end - t_start)) ^ strength.
-    Matches C# ``PolynomialBlendingCurve(start, end, strength)``
-    semantics where strength=1 → linear, strength=2 → quadratic.
-
-    Args:
-        f: The starting curve (returned for x ≤ t_start).
-        g: The ending curve (returned for x ≥ t_end).
-        t_start: Start of the blend region.
-        t_end: End of the blend region.
-        strength: Power exponent for the blend weight (default 1.0).
-    """
-
-    def __init__(
-        self,
-        f: ParametricCurve,
-        g: ParametricCurve,
-        t_start: float,
-        t_end: float,
-        strength: float = 1.0,
-    ) -> None:
-        if t_end <= t_start:
-            raise ValueError("t_end must be greater than t_start")
-        self._f = f
-        self._g = g
-        self._t_start = t_start
-        self._t_end = t_end
-        self._strength = strength
-
-    def evaluate(self, x: float) -> float:
-        """Evaluate the power-law blended curve at x.
-
-        Args:
-            x: The input value.
-
-        Returns:
-            Blended value between f and g.
-        """
-        if x <= self._t_start:
-            return self._f.evaluate(x)
-        if x >= self._t_end:
-            return self._g.evaluate(x)
-        t = (x - self._t_start) / (self._t_end - self._t_start)
-        w = t ** self._strength
-        return (1.0 - w) * self._f.evaluate(x) + w * self._g.evaluate(x)
 
 
 def _build_reform_segment_curve(

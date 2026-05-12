@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from hyesg.models.equity._helpers import extract_short_rate
 from hyesg.models.equity.equity import Equity
 from hyesg.models.equity.svjd import (
     CIRVolAdapter,
@@ -21,5 +22,6 @@ __all__ = [
     "SVJDEquity",
     "VolatilityProcess",
     "ZeroJumpAdapter",
+    "extract_short_rate",
     "svjd_equity_step",
 ]

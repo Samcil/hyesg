@@ -18,6 +18,8 @@ import jax.numpy as jnp
 
 from hyesg.core.registry import register_model
 from hyesg.core.types import FXState, ShockConfig
+from hyesg.models.equity._helpers import extract_short_rate
+from hyesg.outputs import OutputName
 
 if TYPE_CHECKING:
     from hyesg.config.params import GBMParams
@@ -33,7 +35,7 @@ class Equity:
     When vol_model or jump_model are provided, the model reads
     stochastic volatility and jump outputs from deps, composing
     the full SVJD model. When not provided, falls back to plain
-    GBM with constant sigma (backward compatible).
+    GBM with constant sigma.
 
     Args:
         params: GBM parameters (sigma, initial_value).
@@ -122,17 +124,13 @@ class Equity:
         dz = shocks[0]
 
         # Drift from domestic short rate dependency (nested deps format)
-        r = jnp.array(0.0, dtype=jnp.float64)
-        for dep_out in deps.values():
-            if isinstance(dep_out, dict) and "short_rate" in dep_out:
-                r = dep_out["short_rate"]
-                break
+        r = extract_short_rate(deps)
         q = jnp.array(self._dividend_yield, dtype=jnp.float64)
 
         # Volatility: stochastic (from deps) or constant
         if self._vol_model and self._vol_model in deps:
             sigma = deps[self._vol_model].get(
-                "volatility", jnp.array(self._params.sigma, dtype=jnp.float64)
+                OutputName.SIGMA, jnp.array(self._params.sigma, dtype=jnp.float64)
             )
         else:
             sigma = self._params.sigma
@@ -140,8 +138,8 @@ class Equity:
         # Jump contributions: from deps or zero
         zero = jnp.array(0.0, dtype=jnp.float64)
         if self._jump_model and self._jump_model in deps:
-            jump = deps[self._jump_model].get("jump", zero)
-            drift_adj = deps[self._jump_model].get("drift_adjustment", zero)
+            jump = deps[self._jump_model].get(OutputName.JUMP, zero)
+            drift_adj = deps[self._jump_model].get(OutputName.DRIFT_ADJUSTMENT, zero)
         else:
             jump = zero
             drift_adj = zero
@@ -158,7 +156,7 @@ class Equity:
 
         new_state = FXState(log_level=log_new, level=level)
         outputs: dict[str, Any] = {
-            "level": level,
-            "log_return": log_new - state.log_level,
+            OutputName.TOTAL_RETURN_INDEX: level,
+            OutputName.LOG_RETURN: log_new - state.log_level,
         }
         return new_state, outputs

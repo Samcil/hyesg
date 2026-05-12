@@ -32,10 +32,12 @@ from hyesg.core.types import CIR2State, ShockConfig
 from hyesg.math.cir_formulas import (
     cir_A,
     cir_B,
+    cir_euler_step,
     cir_forward_rate,
     cir_phi_from_curves,
 )
 from hyesg.math.transforms import forward_to_zcbp
+from hyesg.outputs import OutputName
 
 if TYPE_CHECKING:
     from hyesg.config.params import CIRParams
@@ -323,10 +325,7 @@ class CIR2PlusPlus:
 
         dz1 = shocks[0]
         x1 = state.x1
-        drift1 = alpha1 * (mu1 - x1) * dt
-        diffusion1 = sigma1 * jnp.sqrt(jnp.maximum(x1, 0.0) * dt) * dz1
-        x1_new = x1 + drift1 + diffusion1
-        state_var1 = jnp.maximum(x1_new, 0.0)
+        x1_new, state_var1 = cir_euler_step(x1, alpha1, mu1, sigma1, dt, dz1)
 
         # Factor 2
         alpha2 = self._params2.alpha
@@ -335,10 +334,7 @@ class CIR2PlusPlus:
 
         dz2 = shocks[1]
         x2 = state.x2
-        drift2 = alpha2 * (mu2 - x2) * dt
-        diffusion2 = sigma2 * jnp.sqrt(jnp.maximum(x2, 0.0) * dt) * dz2
-        x2_new = x2 + drift2 + diffusion2
-        state_var2 = jnp.maximum(x2_new, 0.0)
+        x2_new, state_var2 = cir_euler_step(x2, alpha2, mu2, sigma2, dt, dz2)
 
         t_new = t + dt
         phi_new = self._phi(t_new)
@@ -349,7 +345,7 @@ class CIR2PlusPlus:
             state_var1=state_var1, state_var2=state_var2,
             short_rate=short_rate,
         )
-        outputs = {"short_rate": short_rate}
+        outputs = {OutputName.SHORT_RATE: short_rate}
         return new_state, outputs
 
     # ─── ShortRateModel analytics ───

@@ -426,3 +426,41 @@ def check_cir_timestep_stability(
     mean_reversion_ok = alpha * dt < 1.0
     feller_ratio = 2.0 * alpha * mu / max(sigma**2, 1e-30)
     return mean_reversion_ok and feller_ratio > 0.5
+
+
+def cir_euler_step(
+    x: Float[Array, ""] | float,
+    alpha: float,
+    mu: float,
+    sigma: float,
+    dt: float,
+    dz: Float[Array, ""],
+) -> tuple[Float[Array, ""], Float[Array, ""]]:
+    """Single Euler-Maruyama step for a CIR process.
+
+    Evolves the CIR SDE ``dx = α(μ − x)dt + σ√x dZ`` by one timestep
+    using the Euler-Maruyama discretisation with a non-negativity floor
+    on the diffusion term::
+
+        drift     = α(μ − x) · dt
+        diffusion = σ · √(max(x, 0) · dt) · dZ
+        x_new     = x + drift + diffusion
+        x_floored = max(x_new, 0)
+
+    Args:
+        x: Current CIR factor value (scalar).
+        alpha: Mean reversion speed.
+        mu: Long-run mean level.
+        sigma: Volatility of the CIR process.
+        dt: Timestep size in years.
+        dz: Standard normal shock (scalar).
+
+    Returns:
+        Tuple ``(x_new, x_floored)`` where ``x_new`` is the raw Euler
+        update (may be negative) and ``x_floored = max(x_new, 0)``.
+    """
+    drift = alpha * (mu - x) * dt
+    diffusion = sigma * jnp.sqrt(jnp.maximum(x, 0.0) * dt) * dz
+    x_new = x + drift + diffusion
+    x_floored = jnp.maximum(x_new, 0.0)
+    return x_new, x_floored

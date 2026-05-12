@@ -23,8 +23,9 @@ import jax.numpy as jnp
 
 from hyesg.core.types import FXState, JumpState, ShockConfig, VolState
 from hyesg.math.cir_formulas import cir_euler_step
-from hyesg.outputs import OutputName
 from hyesg.math.jump_utils import jump_adjusted_sigma
+from hyesg.models.equity._helpers import extract_short_rate
+from hyesg.outputs import OutputName
 
 
 # ── Protocols ────────────────────────────────────────────────────────────
@@ -562,11 +563,7 @@ class SVJDEquity:
         normal_jump = shocks[3]
 
         # Extract short rate from deps
-        r = jnp.array(0.0, dtype=jnp.float64)
-        for dep_out in deps.values():
-            if isinstance(dep_out, dict) and OutputName.SHORT_RATE in dep_out:
-                r = dep_out[OutputName.SHORT_RATE]
-                break
+        r = extract_short_rate(deps)
 
         q = jnp.array(self._dividend_yield, dtype=jnp.float64)
         drift = r - q

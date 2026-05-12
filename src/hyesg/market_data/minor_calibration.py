@@ -70,6 +70,9 @@ NAMED_RANGES: dict[str, str] = {
 }
 """Complete registry of named ranges used by the C# ESG minor calibration."""
 
+# Currencies with independent yield curve data in the calibration spreadsheet
+FOREIGN_CURVE_CURRENCIES: tuple[str, ...] = ("USD", "EUR", "JPY")
+
 
 # ── Validated parameter schemas ──────────────────────────────────
 
@@ -301,7 +304,7 @@ def load_minor_calibration(
 
     # Foreign economy curves
     foreign_curves: dict[str, ForeignCurveData] = {}
-    for ccy in ("USD", "EUR", "JPY"):
+    for ccy in FOREIGN_CURVE_CURRENCIES:
         mats = reader.read_named_range(f"{ccy}_Maturities")
         rates = reader.read_named_range(f"{ccy}_Rates")
         foreign_curves[ccy] = ForeignCurveData(
