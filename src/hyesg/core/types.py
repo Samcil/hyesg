@@ -116,6 +116,32 @@ class CreditState(NamedTuple):
     has_defaulted: Float[Array, ""]
 
 
+class VolState(NamedTuple):
+    """State of a stochastic volatility process.
+
+    Attributes:
+        variance: Current variance V(t).
+        volatility: Current volatility √V(t).
+    """
+
+    variance: Float[Array, ""]
+    volatility: Float[Array, ""]
+
+
+class JumpState(NamedTuple):
+    """State of a jump diffusion process.
+
+    Attributes:
+        cum_jumps: Cumulative log-jump contribution.
+        n_jumps: Total number of jumps so far.
+        last_jump_size: Size of last jump (for diagnostics).
+    """
+
+    cum_jumps: Float[Array, ""]
+    n_jumps: Float[Array, ""]
+    last_jump_size: Float[Array, ""]
+
+
 class FXState(NamedTuple):
     """State of an exchange rate / inflation index model.
 
