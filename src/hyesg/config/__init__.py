@@ -1,10 +1,10 @@
-"""Configuration module: params, models, builder, templates, validation."""
+"""Configuration module: params, models, builder, templates, validation, funds."""
 
 from hyesg.config.builder import SimulationBuilder
 from hyesg.config.calibration_builder import CalibrationParametersBuilder
 from hyesg.config.calibration_params import (
-    CIR2PPStructuralParams,
     CalibrationParameters,
+    CIR2PPStructuralParams,
     CorrelationSpec,
     CreditCalibrationParams,
     EquityCalibrationParams,
@@ -12,6 +12,16 @@ from hyesg.config.calibration_params import (
     G2PPStructuralParams,
     RegimeDefinition,
     YieldCurveSpec,
+)
+from hyesg.config.fee_wrappers import FEE_WRAPPERS, get_fee_wrappers
+from hyesg.config.fund_builder import FundBuilder
+from hyesg.config.fund_catalogue import FundCatalogue, build_default_catalogue
+from hyesg.config.funds import (
+    FundCategory,
+    FundDefinition,
+    FundRebalanceStrategy,
+    HoldingSpec,
+    NetOfFeesFund,
 )
 from hyesg.config.models import (
     CorrelationEntry,
@@ -54,6 +64,17 @@ __all__ = [
     "YieldCurveSpec",
     # builder
     "SimulationBuilder",
+    # fund catalogue
+    "FEE_WRAPPERS",
+    "FundBuilder",
+    "FundCatalogue",
+    "FundCategory",
+    "FundDefinition",
+    "FundRebalanceStrategy",
+    "HoldingSpec",
+    "NetOfFeesFund",
+    "build_default_catalogue",
+    "get_fee_wrappers",
     # models
     "CorrelationEntry",
     "ModelConfig",
