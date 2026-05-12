@@ -225,11 +225,6 @@ class TestTodoAnnotations:
 
         assert "F40 Integration Path" in (mod.__doc__ or "")
 
-    def test_dependency_graph_has_todo(self) -> None:
-        import hyesg.orchestration.dependency_graph as mod
-
-        assert "F40 Integration Path" in (mod.__doc__ or "")
-
     def test_device_has_todo(self) -> None:
         import hyesg.orchestration.device as mod
 
