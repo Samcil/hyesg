@@ -111,21 +111,35 @@ class CreditCalibrationParams(BaseModel):
 class CIR2PPStructuralParams(BaseModel):
     """Structural parameters for the CIR2++ nominal rate model.
 
+    Maps to C# ``Cir2PpInterestRateParameters`` (8 CIR params per
+    factor pair) plus the long-term nominal short-rate target from
+    ``LongTermInterestRateAndInflationTargets``.
+
     Attributes:
+        factor1_x0: Initial state of factor 1.
         factor1_alpha: Mean-reversion speed of factor 1.
+        factor1_mu: Long-run mean of factor 1.
         factor1_sigma: Volatility of factor 1.
+        factor2_x0: Initial state of factor 2.
         factor2_alpha: Mean-reversion speed of factor 2.
+        factor2_mu: Long-run mean of factor 2.
         factor2_sigma: Volatility of factor 2.
         blending_alpha: Blending weight between factors.
+        long_term_target: Long-term nominal short rate target.
     """
 
     model_config = ConfigDict(frozen=True)
 
+    factor1_x0: float = Field(ge=0)
     factor1_alpha: float = Field(gt=0)
+    factor1_mu: float = Field(gt=0)
     factor1_sigma: float = Field(ge=0)
+    factor2_x0: float = Field(ge=0)
     factor2_alpha: float = Field(gt=0)
+    factor2_mu: float = Field(gt=0)
     factor2_sigma: float = Field(ge=0)
     blending_alpha: float = Field(ge=0, le=1, default=0.5)
+    long_term_target: float | None = Field(default=None, ge=0)
 
 
 class G2PPStructuralParams(BaseModel):

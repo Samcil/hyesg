@@ -345,3 +345,84 @@ def cir_integral_phi(
     )(s_values)
 
     return jnp.trapezoid(phi_values, s_values)
+
+
+def cir_integral_phi_analytic(
+    t: float,
+    T: float,
+    alpha: float,
+    mu: float,
+    sigma: float,
+    x0: float,
+    market_zcb_fn: Callable,
+) -> Float[Array, ...]:
+    """Analytic integral of CIR++ phi shift for bond pricing.
+
+    ∫ₜᵀ φ(s)ds = ln[P_mkt(0,t)/P_mkt(0,T)]
+                 - ln[A(t)/A(T)] - [B(T)-B(t)]·x₀
+
+    where A, B are the CIR affine bond price coefficients.
+
+    This is exact (no discretisation error) and much faster than
+    the numerical trapezoid in ``cir_integral_phi``.
+
+    Args:
+        t: Start time.
+        T: End time.
+        alpha: Mean reversion speed.
+        mu: Long-run mean.
+        sigma: Volatility.
+        x0: Initial CIR state.
+        market_zcb_fn: Market ZCB price function P(0, s).
+
+    Returns:
+        ∫ₜᵀ φ(s)ds.
+    """
+    t = jnp.asarray(t, dtype=jnp.float64)
+    T = jnp.asarray(T, dtype=jnp.float64)
+
+    # Market term: ln[P(0,t)/P(0,T)]
+    p_t = market_zcb_fn(t)
+    p_T = market_zcb_fn(T)
+    market_term = jnp.log(jnp.maximum(p_t, 1e-30)) - jnp.log(jnp.maximum(p_T, 1e-30))
+
+    # CIR model term: ln[A(t)/A(T)] + [B(T)-B(t)]·x₀
+    A_t = cir_A(t, alpha, mu, sigma)
+    A_T = cir_A(T, alpha, mu, sigma)
+    B_t = cir_B(t, alpha, sigma)
+    B_T = cir_B(T, alpha, sigma)
+
+    cir_term = (
+        jnp.log(jnp.maximum(A_t, 1e-30)) - jnp.log(jnp.maximum(A_T, 1e-30))
+        + (B_T - B_t) * x0
+    )
+
+    return market_term - cir_term
+
+
+def check_cir_timestep_stability(
+    alpha: float,
+    sigma: float,
+    mu: float,
+    dt: float,
+) -> bool:
+    """Check that the Euler-Maruyama timestep is stable for a CIR process.
+
+    The standard stability requirement for explicit Euler on the CIR
+    drift is α·dt < 1 (for the mean-reversion not to overshoot).
+    The Feller condition 2αμ ≥ σ² ensures non-negativity in continuous
+    time; we also check that the discrete approximation does not
+    violate this excessively.
+
+    Args:
+        alpha: Mean reversion speed.
+        sigma: Volatility parameter.
+        mu: Long-run mean.
+        dt: Timestep size.
+
+    Returns:
+        True if the timestep is stable.
+    """
+    mean_reversion_ok = alpha * dt < 1.0
+    feller_ratio = 2.0 * alpha * mu / max(sigma**2, 1e-30)
+    return mean_reversion_ok and feller_ratio > 0.5

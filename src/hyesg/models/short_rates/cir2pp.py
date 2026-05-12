@@ -125,6 +125,58 @@ def _cir2_integral_phi(
     return jnp.trapezoid(phi_values, s_values)
 
 
+def _cir2_integral_phi_analytic(
+    t: float,
+    T: float,
+    alpha1: float,
+    mu1: float,
+    sigma1: float,
+    x10: float,
+    alpha2: float,
+    mu2: float,
+    sigma2: float,
+    x20: float,
+    market_zcb_fn: Any,
+) -> jnp.ndarray:
+    """Analytic integral of two-factor CIR2++ phi shift.
+
+    ∫ₜᵀ φ(s)ds = ln[P_mkt(0,t)/P_mkt(0,T)]
+                 - Σᵢ { ln[Aᵢ(t)/Aᵢ(T)] + [Bᵢ(T)-Bᵢ(t)]·xᵢ₀ }
+
+    This is exact and avoids the O(dt) discretisation error of
+    the numerical trapezoid in ``_cir2_integral_phi``.
+    """
+    t = jnp.asarray(t, dtype=jnp.float64)
+    T = jnp.asarray(T, dtype=jnp.float64)
+
+    # Market term
+    p_t = market_zcb_fn(t)
+    p_T = market_zcb_fn(T)
+    market_term = jnp.log(jnp.maximum(p_t, 1e-30)) - jnp.log(jnp.maximum(p_T, 1e-30))
+
+    # Factor 1 CIR term
+    a1_t = cir_A(t, alpha1, mu1, sigma1)
+    a1_T = cir_A(T, alpha1, mu1, sigma1)
+    b1_t = cir_B(t, alpha1, sigma1)
+    b1_T = cir_B(T, alpha1, sigma1)
+    cir1_term = (
+        jnp.log(jnp.maximum(a1_t, 1e-30)) - jnp.log(jnp.maximum(a1_T, 1e-30))
+        + (b1_T - b1_t) * x10
+    )
+
+    # Factor 2 CIR term
+    a2_t = cir_A(t, alpha2, mu2, sigma2)
+    a2_T = cir_A(T, alpha2, mu2, sigma2)
+    b2_t = cir_B(t, alpha2, sigma2)
+    b2_T = cir_B(T, alpha2, sigma2)
+    cir2_term = (
+        jnp.log(jnp.maximum(a2_t, 1e-30)) - jnp.log(jnp.maximum(a2_T, 1e-30))
+        + (b2_T - b2_t) * x20
+    )
+
+    return market_term - cir1_term - cir2_term
+
+
 @register_model("cir2pp")
 class CIR2PlusPlus:
     """CIR2++ model: two independent CIR factors + deterministic shift.
@@ -338,12 +390,12 @@ class CIR2PlusPlus:
         sigma2 = self._params2.sigma
         x20 = self._params2.initial_value
 
-        # Integral of phi from t to T
-        int_phi = _cir2_integral_phi(
+        # Integral of phi from t to T (analytic — exact, no discretisation error)
+        int_phi = _cir2_integral_phi_analytic(
             t, maturity,
             alpha1, mu1, sigma1, x10,
             alpha2, mu2, sigma2, x20,
-            self._forward_curve_fn,
+            self._zcb_curve.evaluate,
         )
 
         # Factor 1: A₁(0,T)/A₁(0,t) and B₁(0,T)-B₁(0,t)

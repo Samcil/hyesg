@@ -183,9 +183,13 @@ class TestCreditCalibrationParams:
 class TestCIR2PPStructuralParams:
     def test_valid(self) -> None:
         p = CIR2PPStructuralParams(
+            factor1_x0=0.02,
             factor1_alpha=0.1,
+            factor1_mu=0.03,
             factor1_sigma=0.05,
+            factor2_x0=0.01,
             factor2_alpha=0.2,
+            factor2_mu=0.02,
             factor2_sigma=0.03,
         )
         assert p.blending_alpha == 0.5
@@ -193,9 +197,13 @@ class TestCIR2PPStructuralParams:
     def test_zero_alpha_rejected(self) -> None:
         with pytest.raises(ValidationError):
             CIR2PPStructuralParams(
+                factor1_x0=0.02,
                 factor1_alpha=0.0,
+                factor1_mu=0.03,
                 factor1_sigma=0.05,
+                factor2_x0=0.01,
                 factor2_alpha=0.2,
+                factor2_mu=0.02,
                 factor2_sigma=0.03,
             )
 
@@ -313,9 +321,13 @@ class TestCalibrationParameters:
             },
             inflation_targets={"GBP": 0.02},
             cir2pp_structural=CIR2PPStructuralParams(
+                factor1_x0=0.02,
                 factor1_alpha=0.1,
+                factor1_mu=0.03,
                 factor1_sigma=0.05,
+                factor2_x0=0.01,
                 factor2_alpha=0.2,
+                factor2_mu=0.02,
                 factor2_sigma=0.03,
             ),
             g2pp_structural=G2PPStructuralParams(

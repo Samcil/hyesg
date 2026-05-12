@@ -24,9 +24,11 @@ from hyesg.math.cir_formulas import (
     cir_forward_rate,
     cir_h,
     cir_integral_phi,
+    cir_integral_phi_analytic,
     cir_phi_from_curves,
     cir_variance,
     cir_zcb_price,
+    check_cir_timestep_stability,
 )
 from hyesg.math.g2pp_analytics import (
     G2PPAnalyticParams,
@@ -40,6 +42,12 @@ from hyesg.math.gaussian_helpers import (
     b_func,
     b_over_dt,
     variance_integral_ou,
+)
+from hyesg.math.jump_utils import (
+    expected_sigma_taylor,
+    jump_adjusted_sigma,
+    poisson_inverse_cdf,
+    poisson_inverse_cdf_continuous,
 )
 from hyesg.math.pricing import (
     black_call,
@@ -78,15 +86,22 @@ __all__ = [
     "cir_forward_rate",
     "cir_h",
     "cir_integral_phi",
+    "cir_integral_phi_analytic",
     "cir_phi_from_curves",
     "cir_variance",
     "cir_zcb_price",
+    "check_cir_timestep_stability",
     # Quadrature
     "gauss_kronrod_integrate",
     # Gaussian helpers
     "b_func",
     "b_over_dt",
     "variance_integral_ou",
+    # Jump-diffusion utilities
+    "expected_sigma_taylor",
+    "jump_adjusted_sigma",
+    "poisson_inverse_cdf",
+    "poisson_inverse_cdf_continuous",
     # Pricing
     "black_call",
     "black_implied_vol",
