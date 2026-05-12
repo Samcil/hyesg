@@ -1,6 +1,18 @@
 """Configuration module: params, models, builder, templates, validation."""
 
 from hyesg.config.builder import SimulationBuilder
+from hyesg.config.calibration_builder import CalibrationParametersBuilder
+from hyesg.config.calibration_params import (
+    CIR2PPStructuralParams,
+    CalibrationParameters,
+    CorrelationSpec,
+    CreditCalibrationParams,
+    EquityCalibrationParams,
+    FXCalibrationParams,
+    G2PPStructuralParams,
+    RegimeDefinition,
+    YieldCurveSpec,
+)
 from hyesg.config.models import (
     CorrelationEntry,
     ModelConfig,
@@ -28,6 +40,18 @@ from hyesg.config.validation import (
 )
 
 __all__ = [
+    # calibration builder
+    "CalibrationParametersBuilder",
+    # calibration params
+    "CIR2PPStructuralParams",
+    "CalibrationParameters",
+    "CorrelationSpec",
+    "CreditCalibrationParams",
+    "EquityCalibrationParams",
+    "FXCalibrationParams",
+    "G2PPStructuralParams",
+    "RegimeDefinition",
+    "YieldCurveSpec",
     # builder
     "SimulationBuilder",
     # models
