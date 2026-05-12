@@ -2,6 +2,10 @@
 
 The exchange rate evolves as a log-normal process driven by the
 differential between domestic and foreign short rates.
+
+Supports optional SVJD composition: when a vol_model or jump_model
+dependency name is configured, the model reads stochastic volatility
+and jump contributions from those dependencies.
 """
 
 from __future__ import annotations
@@ -19,18 +23,22 @@ if TYPE_CHECKING:
 
 @register_model("fx")
 class FXRate:
-    """Exchange rate model via GBM with interest rate differential.
+    """Exchange rate model via GBM with optional SVJD composition.
 
-    SDE: dS/S = (r_domestic - r_foreign)dt + σ dZ
-    Euler in log: ln S_{t+dt} = ln S_t + (r_d - r_f - σ²/2)dt + σ·dZ·√dt
+    SDE (plain): dS/S = (r_d - r_f)dt + σ dZ
+    SDE (SVJD):  dS/S = (r_d - r_f - λκ - ½σ²(t))dt + σ(t)dW + J·dN
 
-    Dependencies: needs domestic and foreign short rates from deps.
+    When vol_model or jump_model are provided, reads stochastic
+    volatility and jump outputs from deps. FX uses the same SVJD
+    structure as equity via the FCA framework.
 
     Args:
         params: GBM parameters (sigma, initial_value).
         name: Unique model name.
         domestic_rate_model: Key for domestic rate model in deps.
         foreign_rate_model: Key for foreign rate model in deps.
+        vol_model: Name of volatility dependency in deps.
+        jump_model: Name of jump dependency in deps.
     """
 
     def __init__(
@@ -39,11 +47,15 @@ class FXRate:
         name: str = "fx",
         domestic_rate_model: str = "",
         foreign_rate_model: str = "",
+        vol_model: str = "",
+        jump_model: str = "",
     ) -> None:
         self._params = params
         self._name = name
         self._domestic = domestic_rate_model
         self._foreign = foreign_rate_model
+        self._vol_model = vol_model
+        self._jump_model = jump_model
 
     @property
     def name(self) -> str:
@@ -88,13 +100,17 @@ class FXRate:
     ) -> tuple[FXState, dict[str, Any]]:
         """Advance the FX rate by one timestep.
 
+        When vol_model/jump_model are configured, reads stochastic
+        volatility and jump contributions from deps. Otherwise
+        uses constant sigma with no jumps (plain GBM).
+
         Args:
             state: Current FXState.
             t: Current time in years.
             dt: Timestep size in years.
             shocks: Array of shape (1,) with N(0,1) shock.
             deps: Dependency outputs keyed by model name, each a dict
-                  containing ``"short_rate"``.
+                  containing ``"short_rate"``, and optionally vol/jump outputs.
 
         Returns:
             Tuple of (new_state, outputs_dict).
@@ -114,11 +130,28 @@ class FXRate:
             else zero
         )
 
-        sigma = self._params.sigma
+        # Volatility: stochastic (from deps) or constant
+        if self._vol_model and self._vol_model in deps:
+            sigma = deps[self._vol_model].get(
+                "volatility", jnp.array(self._params.sigma, dtype=jnp.float64)
+            )
+        else:
+            sigma = self._params.sigma
+
+        # Jump contributions: from deps or zero
+        if self._jump_model and self._jump_model in deps:
+            jump = deps[self._jump_model].get("jump", zero)
+            drift_adj = deps[self._jump_model].get("drift_adjustment", zero)
+        else:
+            jump = zero
+            drift_adj = zero
+
         log_new = (
             state.log_level
             + (r_d - r_f - 0.5 * sigma**2) * dt
+            + drift_adj
             + sigma * dz * jnp.sqrt(dt)
+            + jump
         )
         level = jnp.exp(log_new)
 

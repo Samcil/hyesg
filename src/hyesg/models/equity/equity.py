@@ -3,6 +3,11 @@
 Geometric Brownian Motion for equity indices and property values.
 The model evolves log-prices with drift from the domestic short rate
 minus a continuous dividend yield.
+
+Supports optional SVJD composition: when a vol_model or jump_model
+dependency name is configured, the model reads stochastic volatility
+and jump contributions from those dependencies instead of using
+constant sigma.
 """
 
 from __future__ import annotations
@@ -20,20 +25,26 @@ if TYPE_CHECKING:
 
 @register_model("equity")
 class Equity:
-    """GBM equity / property model.
+    """GBM equity / property model with optional SVJD composition.
 
-    SDE: dS/S = (r - q - σ²/2)dt + σ dZ   (log-normal)
-    Euler in log: ln S_{t+dt} = ln S_t + (r - q - σ²/2)dt + σ·dZ·√dt
+    SDE (plain): dS/S = (r - q - σ²/2)dt + σ dZ   (log-normal)
+    SDE (SVJD):  dS/S = (r - q - λκ - ½σ²(t))dt + σ(t)dW + J·dN
 
-    Where r = domestic short rate (from deps), q = dividend yield,
-    σ can be constant or from a stochastic vol model (from deps).
-
-    Shocks: 1 × N(0,1), model multiplies by √dt.
+    When vol_model or jump_model are provided, the model reads
+    stochastic volatility and jump outputs from deps, composing
+    the full SVJD model. When not provided, falls back to plain
+    GBM with constant sigma (backward compatible).
 
     Args:
         params: GBM parameters (sigma, initial_value).
         name: Unique model name.
         dividend_yield: Continuous dividend yield.
+        vol_model: Name of the volatility dependency in deps.
+            When set, reads ``deps[vol_model]["volatility"]``
+            as σ(t) instead of using constant sigma.
+        jump_model: Name of the jump dependency in deps.
+            When set, reads ``deps[jump_model]["jump"]`` and
+            ``deps[jump_model]["drift_adjustment"]``.
     """
 
     def __init__(
@@ -41,10 +52,14 @@ class Equity:
         params: GBMParams,
         name: str = "equity",
         dividend_yield: float = 0.0,
+        vol_model: str = "",
+        jump_model: str = "",
     ) -> None:
         self._params = params
         self._name = name
         self._dividend_yield = dividend_yield
+        self._vol_model = vol_model
+        self._jump_model = jump_model
 
     @property
     def name(self) -> str:
@@ -89,12 +104,17 @@ class Equity:
     ) -> tuple[FXState, dict[str, Any]]:
         """Advance the equity price by one timestep.
 
+        When vol_model/jump_model are configured, reads stochastic
+        volatility and jump contributions from deps. Otherwise
+        uses constant sigma with no jumps (plain GBM).
+
         Args:
             state: Current FXState.
             t: Current time in years.
             dt: Timestep size in years.
             shocks: Array of shape (1,) with N(0,1) shock.
-            deps: Dependency outputs (expects ``"short_rate"`` key).
+            deps: Dependency outputs (expects ``"short_rate"`` key,
+                  and optionally vol/jump model outputs).
 
         Returns:
             Tuple of (new_state, outputs_dict).
@@ -108,16 +128,36 @@ class Equity:
                 r = dep_out["short_rate"]
                 break
         q = jnp.array(self._dividend_yield, dtype=jnp.float64)
-        sigma = self._params.sigma
 
-        # Log-normal Euler step
+        # Volatility: stochastic (from deps) or constant
+        if self._vol_model and self._vol_model in deps:
+            sigma = deps[self._vol_model].get(
+                "volatility", jnp.array(self._params.sigma, dtype=jnp.float64)
+            )
+        else:
+            sigma = self._params.sigma
+
+        # Jump contributions: from deps or zero
+        zero = jnp.array(0.0, dtype=jnp.float64)
+        if self._jump_model and self._jump_model in deps:
+            jump = deps[self._jump_model].get("jump", zero)
+            drift_adj = deps[self._jump_model].get("drift_adjustment", zero)
+        else:
+            jump = zero
+            drift_adj = zero
+
+        # Log-normal Euler step with optional SVJD terms
         log_new = (
-            state.log_level + (r - q - 0.5 * sigma**2) * dt + sigma * dz * jnp.sqrt(dt)
+            state.log_level
+            + (r - q - 0.5 * sigma**2) * dt
+            + drift_adj
+            + sigma * dz * jnp.sqrt(dt)
+            + jump
         )
         level = jnp.exp(log_new)
 
         new_state = FXState(log_level=log_new, level=level)
-        outputs = {
+        outputs: dict[str, Any] = {
             "level": level,
             "log_return": log_new - state.log_level,
         }
