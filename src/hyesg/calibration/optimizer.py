@@ -8,9 +8,8 @@ optimizer for fitting model parameters to market data.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jax
 import jax.numpy as jnp
@@ -18,6 +17,9 @@ import numpy as np
 from jax import Array
 
 from hyesg.calibration.result import OptimizationResult
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -489,13 +491,13 @@ class RobustLevenbergMarquardt:
         n = x.shape[0]
         f0 = f(x)
         m = f0.shape[0]
-        J = jnp.zeros((m, n), dtype=jnp.float64)
+        jac = jnp.zeros((m, n), dtype=jnp.float64)
 
         for j in range(n):
             e_j = jnp.zeros(n, dtype=jnp.float64).at[j].set(1.0)
             f_plus = f(x + eps * e_j)
             f_minus = f(x - eps * e_j)
             col = (f_plus - f_minus) / (2.0 * eps)
-            J = J.at[:, j].set(col)
+            jac = jac.at[:, j].set(col)
 
-        return J
+        return jac

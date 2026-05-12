@@ -12,7 +12,6 @@ from hyesg.config.simulation_setup import (
     SimulationSetupBuilder,
 )
 
-
 # ── SetupRegimeConfig ──────────────────────────────────────────────
 
 

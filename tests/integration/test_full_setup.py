@@ -7,11 +7,8 @@ import pytest
 from hyesg.config.default_setup import build_default_ess_setup
 from hyesg.config.economy import Economy, EconomyModelConfig
 from hyesg.config.simulation_setup import (
-    SetupRegimeConfig,
-    SimulationSetup,
     SimulationSetupBuilder,
 )
-
 
 # ── Helpers ────────────────────────────────────────────────────────
 

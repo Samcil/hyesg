@@ -7,7 +7,7 @@ map to the C# ``SimulationSetup`` class used by the ESG engine.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -57,9 +57,9 @@ class SimulationSetup(BaseModel):
     inverse_dt: int = 12
     regimes: list[SetupRegimeConfig] = Field(default_factory=list)
     economies: list[Any] = Field(default_factory=list)
-    correlation: Optional[Any] = None
-    funds: Optional[Any] = None
-    post_processing: Optional[Any] = None
+    correlation: Any | None = None
+    funds: Any | None = None
+    post_processing: Any | None = None
 
     @property
     def n_steps(self) -> int:

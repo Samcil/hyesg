@@ -13,7 +13,6 @@ from hyesg.calibration.optimizer import (
 from hyesg.calibration.protocols import Optimizer
 from hyesg.calibration.result import OptimizationResult
 
-
 # ── Helper functions ───────────────────────────────────────────────
 
 
@@ -154,18 +153,18 @@ class TestJacobian:
     def test_central_diff_accuracy(self) -> None:
         """Jacobian of quadratic_residuals is the identity matrix."""
         x = jnp.array([3.0, 7.0])
-        J = RobustLevenbergMarquardt._central_differences_jacobian(
+        jac = RobustLevenbergMarquardt._central_differences_jacobian(
             quadratic_residuals, x
         )
         expected = jnp.eye(2)
-        assert jnp.allclose(J, expected, atol=1e-5)
+        assert jnp.allclose(jac, expected, atol=1e-5)
 
     def test_rosenbrock_jacobian_shape(self) -> None:
         x = jnp.array([1.0, 1.0])
-        J = RobustLevenbergMarquardt._central_differences_jacobian(
+        jac = RobustLevenbergMarquardt._central_differences_jacobian(
             rosenbrock_residuals, x
         )
-        assert J.shape == (2, 2)
+        assert jac.shape == (2, 2)
 
 
 # ── Fallback behaviour ────────────────────────────────────────────
