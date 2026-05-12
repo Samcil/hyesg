@@ -1,9 +1,12 @@
 """GBP domestic economy configuration.
 
 Builds the GBP economy with all model types matching the C# ESS
-calibration structure: CIR2++ nominal rates, G2++ real rates,
-FCA-based inflation, 14 UK equity/growth-asset models, credit
-pool, and salary wedge.
+calibration structure (Calibration.cs lines 312–562):
+
+- CIR2++ nominal rates, G2++ real rates, FCA-based inflation
+- 14 UK equity/growth-asset models:
+  8 listed equities (benchmark + 7 factors) + 6 property/alternatives
+- Credit pool and salary wedge
 """
 
 from __future__ import annotations
@@ -58,22 +61,26 @@ def build_gbp_economy() -> Economy:
     )
 
 
-# UK equity/growth-asset labels matching C# ESS exactly.
+# UK equity/growth-asset labels matching C# ESS Calibration.cs exactly.
+# 14 assets: 8 listed equities (benchmark + 7 factors) + 6 property/alternatives.
+# Display names are contractual — they appear in output paths.
 _UK_EQUITY_NAMES: list[tuple[str, str]] = [
-    ("gbp_uk_eq_benchmark", "UK Eq Benchmark"),
-    ("gbp_uk_eq_size", "UK Eq Size"),
-    ("gbp_uk_eq_value", "UK Eq Value"),
-    ("gbp_uk_eq_low_vol", "UK Eq Low Vol"),
-    ("gbp_uk_eq_quality", "UK Eq Quality"),
-    ("gbp_direct_property", "Direct Property"),
-    ("gbp_dput", "DPUT"),
-    ("gbp_secondary_property", "Secondary Property"),
-    ("gbp_long_lease", "Long Lease"),
-    ("gbp_reits", "REITs"),
-    ("gbp_absolute_return", "Absolute Return"),
-    ("gbp_dgf3", "DGF3"),
-    ("gbp_private_equity", "Private Equity"),
-    ("gbp_venture_capital", "Venture Capital"),
+    # Listed equities: benchmark + 7 factor equities
+    ("gbp_uk_equity", "UK Equity"),
+    ("gbp_uk_factor_equity_size", "UK FactorEquity Size"),
+    ("gbp_uk_factor_equity_size_mid", "UK FactorEquity Size Mid"),
+    ("gbp_uk_factor_equity_value", "UK FactorEquity Value"),
+    ("gbp_uk_factor_equity_income", "UK FactorEquity Income"),
+    ("gbp_uk_factor_equity_momentum", "UK FactorEquity Momentum"),
+    ("gbp_uk_factor_equity_quality", "UK FactorEquity Quality"),
+    ("gbp_uk_factor_equity_low_volatility", "UK FactorEquity LowVolatility"),
+    # Property and alternatives
+    ("gbp_uk_reits", "UK REITs"),
+    ("gbp_private_equity_gross", "Private Equity Gross"),
+    ("gbp_uk_commercial_property", "UK Commercial Property"),
+    ("gbp_uk_prs_property", "UK Private Rented Sector Property"),
+    ("gbp_uk_social_housing_property", "UK Social Housing Sector Property"),
+    ("gbp_uk_long_lease_property", "UK Long Lease Sector Property"),
 ]
 
 

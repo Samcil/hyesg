@@ -78,7 +78,7 @@ class TestAllForeignEconomies:
 
 
 class TestUSDEconomy:
-    """USD-specific tests."""
+    """USD-specific tests matching C# Calibration.cs lines 564–818."""
 
     def test_name(self) -> None:
         assert build_usd_economy().name == "USD"
@@ -87,13 +87,29 @@ class TestUSDEconomy:
         """USD has a credit pool."""
         assert build_usd_economy().credit_pool is not None
 
-    def test_has_5_equities(self) -> None:
-        """USD has 5 US equity models (benchmark + 4 factors)."""
-        assert len(build_usd_economy().equity_models) == 5
+    def test_has_11_equities(self) -> None:
+        """USD has 11 equity models (benchmark + 6 factors + 4 alternatives)."""
+        assert len(build_usd_economy().equity_models) == 11
+
+    def test_fx_has_jump_params(self) -> None:
+        """USD FX model carries stochastic vol + jump parameters."""
+        fx = build_usd_economy().fx_model
+        assert fx is not None
+        assert fx.params is not None
+        assert "jump_lambda" in fx.params
+        assert "vol_alpha" in fx.params
+
+    def test_equity_display_names(self) -> None:
+        """USD equity display names match C# exactly."""
+        econ = build_usd_economy()
+        names = [eq.params["display_name"] for eq in econ.equity_models]
+        assert names[0] == "US Equity"
+        assert "Commodities" in names
+        assert "Global REITs" in names
 
 
 class TestEUREconomy:
-    """EUR-specific tests."""
+    """EUR-specific tests matching C# Calibration.cs lines 820–923."""
 
     def test_name(self) -> None:
         assert build_eur_economy().name == "EUR"
@@ -102,13 +118,22 @@ class TestEUREconomy:
         """EUR has a credit pool."""
         assert build_eur_economy().credit_pool is not None
 
-    def test_has_5_equities(self) -> None:
-        """EUR has 5 EU equity models (benchmark + 4 factors)."""
-        assert len(build_eur_economy().equity_models) == 5
+    def test_has_1_equity(self) -> None:
+        """EUR has exactly 1 equity model ('EU Equity')."""
+        econ = build_eur_economy()
+        assert len(econ.equity_models) == 1
+        assert econ.equity_models[0].params["display_name"] == "EU Equity"
+
+    def test_fx_has_jump_params(self) -> None:
+        """EUR FX model carries stochastic vol + jump parameters."""
+        fx = build_eur_economy().fx_model
+        assert fx is not None
+        assert fx.params is not None
+        assert "jump_lambda" in fx.params
 
 
 class TestJPYEconomy:
-    """JPY-specific tests."""
+    """JPY-specific tests matching C# Calibration.cs lines 925–1028."""
 
     def test_name(self) -> None:
         assert build_jpy_economy().name == "JPY"
@@ -117,9 +142,15 @@ class TestJPYEconomy:
         """JPY has no credit pool."""
         assert build_jpy_economy().credit_pool is None
 
+    def test_has_1_equity(self) -> None:
+        """JPY has exactly 1 equity model ('JP Equity')."""
+        econ = build_jpy_economy()
+        assert len(econ.equity_models) == 1
+        assert econ.equity_models[0].params["display_name"] == "JP Equity"
+
 
 class TestEMEconomy:
-    """EM-specific tests."""
+    """EM-specific tests matching C# Calibration.cs lines 1030–1110."""
 
     def test_name(self) -> None:
         assert build_em_economy().name == "EM"
@@ -128,9 +159,21 @@ class TestEMEconomy:
         """EM has no credit pool."""
         assert build_em_economy().credit_pool is None
 
+    def test_has_1_equity(self) -> None:
+        """EM has exactly 1 equity model ('EM Equity')."""
+        econ = build_em_economy()
+        assert len(econ.equity_models) == 1
+        assert econ.equity_models[0].params["display_name"] == "EM Equity"
+
+    def test_nominal_proxy_from_usd(self) -> None:
+        """EM nominal model records USD proxy relationship."""
+        econ = build_em_economy()
+        assert econ.nominal_rate_model.params is not None
+        assert econ.nominal_rate_model.params.get("nominal_proxy") == "USD"
+
 
 class TestAPACEconomy:
-    """APAC-specific tests."""
+    """APAC-specific tests matching C# Calibration.cs lines 1112–1210."""
 
     def test_name(self) -> None:
         assert build_apac_economy().name == "APAC"
@@ -138,3 +181,20 @@ class TestAPACEconomy:
     def test_no_credit(self) -> None:
         """APAC has no credit pool."""
         assert build_apac_economy().credit_pool is None
+
+    def test_has_2_equities(self) -> None:
+        """APAC has exactly 2 equity models."""
+        econ = build_apac_economy()
+        assert len(econ.equity_models) == 2
+
+    def test_equity_display_names(self) -> None:
+        """APAC equity display names match C# exactly."""
+        econ = build_apac_economy()
+        names = [eq.params["display_name"] for eq in econ.equity_models]
+        assert names == ["APAC Equity", "APAC Developed Equity"]
+
+    def test_nominal_proxy_from_usd(self) -> None:
+        """APAC nominal model records USD proxy relationship."""
+        econ = build_apac_economy()
+        assert econ.nominal_rate_model.params is not None
+        assert econ.nominal_rate_model.params.get("nominal_proxy") == "USD"

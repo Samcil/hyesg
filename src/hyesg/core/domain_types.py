@@ -116,4 +116,4 @@ class CreditSpec(BaseModel):
     rating: CreditClass
     recovery_type: RecoveryType = RecoveryType.FACE_VALUE
     recovery_rate: float = Field(default=0.4, ge=0.0, le=1.0)
-    liquidity: Liquidity = Liquidity.LIQUID
+    liquidity: Liquidity = Liquidity.HIGH

@@ -89,17 +89,43 @@ class TestGBPEconomy:
         assert len(econ.all_models) == 19
 
     def test_equity_includes_benchmark(self) -> None:
-        """UK Eq Benchmark is in the equity models."""
+        """UK Equity benchmark is in the equity models."""
         econ = build_gbp_economy()
         labels = [eq.label for eq in econ.equity_models]
-        assert "gbp_uk_eq_benchmark" in labels
+        assert "gbp_uk_equity" in labels
 
     def test_equity_includes_property_types(self) -> None:
-        """Property-related models are present."""
+        """Property-related models are present (C# exact names)."""
         econ = build_gbp_economy()
         labels = {eq.label for eq in econ.equity_models}
-        assert "gbp_direct_property" in labels
-        assert "gbp_dput" in labels
-        assert "gbp_secondary_property" in labels
-        assert "gbp_long_lease" in labels
-        assert "gbp_reits" in labels
+        assert "gbp_uk_commercial_property" in labels
+        assert "gbp_uk_prs_property" in labels
+        assert "gbp_uk_social_housing_property" in labels
+        assert "gbp_uk_long_lease_property" in labels
+        assert "gbp_uk_reits" in labels
+
+    def test_equity_display_names_match_csharp(self) -> None:
+        """All display names match C# Calibration.cs exactly."""
+        econ = build_gbp_economy()
+        names = {
+            eq.params["display_name"]
+            for eq in econ.equity_models
+            if eq.params and "display_name" in eq.params
+        }
+        expected = {
+            "UK Equity",
+            "UK FactorEquity Size",
+            "UK FactorEquity Size Mid",
+            "UK FactorEquity Value",
+            "UK FactorEquity Income",
+            "UK FactorEquity Momentum",
+            "UK FactorEquity Quality",
+            "UK FactorEquity LowVolatility",
+            "UK REITs",
+            "Private Equity Gross",
+            "UK Commercial Property",
+            "UK Private Rented Sector Property",
+            "UK Social Housing Sector Property",
+            "UK Long Lease Sector Property",
+        }
+        assert names == expected
