@@ -605,7 +605,7 @@ class TestDiscountFactors:
         short_rates = jnp.full((n_trials, n_steps), r)
         df = LSMCPricer._build_discount_factors(short_rates, dt)
 
-        times = jnp.arange(1, n_steps + 1) * dt
+        times = jnp.arange(n_steps) * dt
         expected = jnp.exp(-r * times)
 
         assert df.shape == (n_trials, n_steps)

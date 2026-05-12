@@ -41,7 +41,8 @@ def laguerre_basis(x: Array, degree: int = 3) -> Array:
     # Normalise to unit-mean so exp(-u/2) stays well-conditioned
     x_mean = jnp.mean(x)
     u = jnp.where(x_mean > 0, x / x_mean, x)
-    weight = jnp.exp(-u / 2.0)
+    u_safe = jnp.clip(u, -500.0, 500.0)
+    weight = jnp.exp(-u_safe / 2.0)
 
     columns: list[Array] = []
     if degree >= 0:

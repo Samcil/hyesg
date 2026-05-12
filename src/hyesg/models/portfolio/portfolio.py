@@ -12,6 +12,7 @@ import logging
 import warnings
 from typing import TYPE_CHECKING
 
+import jax
 import jax.numpy as jnp
 from jax import Array
 
@@ -185,17 +186,23 @@ def _buy_and_hold_returns(
     Weights evolve with cumulative asset returns; no rebalancing.
 
     Args:
-        returns_stack: Asset returns with shape (n_trials, n_steps, n_assets).
-        initial_weights: Starting weights with shape (n_assets,).
+        returns_stack: **Arithmetic** asset returns with shape
+            ``(n_trials, n_steps, n_assets)``.  If the simulation
+            produces log returns, convert first via
+            ``jnp.exp(log_returns) - 1``.
+        initial_weights: Starting weights with shape ``(n_assets,)``.
 
     Returns:
-        Tuple of (portfolio_returns, weights_history) where
-        portfolio_returns has shape (n_trials, n_steps) and
-        weights_history has shape (n_trials, n_steps, n_assets).
+        Tuple of ``(portfolio_returns, weights_history)`` where
+        ``portfolio_returns`` has shape ``(n_trials, n_steps)`` and
+        ``weights_history`` has shape ``(n_trials, n_steps, n_assets)``.
     """
     n_trials, n_steps, n_assets = returns_stack.shape
 
     # Cumulative growth factors per asset: (n_trials, n_steps, n_assets)
+    # NOTE: returns_stack must contain arithmetic returns, not log returns.
+    # If the simulation produces log returns, the caller must convert via
+    # ``jnp.exp(log_returns) - 1`` before passing to this function.
     growth = jnp.cumprod(1.0 + returns_stack, axis=1)
 
     # Value of each asset at each step (unnormalised)
@@ -205,8 +212,9 @@ def _buy_and_hold_returns(
     # Total portfolio value at each step
     port_total = jnp.sum(asset_values, axis=-1, keepdims=True)
 
-    # Drifting weights
-    weights_history = asset_values / port_total
+    # Drifting weights — guard against total wipeout (0/0 → NaN)
+    safe_total = jnp.maximum(port_total, 1e-30)
+    weights_history = asset_values / safe_total
 
     # Portfolio returns: weighted by *beginning-of-period* weights
     # At step 0: weights = initial_weights
@@ -229,56 +237,62 @@ def _periodic_rebalance_returns(
     """Compute portfolio returns with periodic rebalancing.
 
     Between rebalances weights drift (buy-and-hold); at rebalance dates
-    weights reset to the target.
+    weights reset to the target.  Uses ``jax.lax.scan`` so the function
+    is JIT-safe.
 
     Args:
-        returns_stack: Asset returns with shape (n_trials, n_steps, n_assets).
-        target_weights: Target weights with shape (n_assets,).
+        returns_stack: Arithmetic asset returns, shape
+            ``(n_trials, n_steps, n_assets)``.
+        target_weights: Target weights with shape ``(n_assets,)``.
         frequency: Steps between rebalances.
 
     Returns:
-        Tuple of (portfolio_returns, weights_history).
+        Tuple of ``(portfolio_returns, weights_history)`` where
+        ``portfolio_returns`` has shape ``(n_trials, n_steps)`` and
+        ``weights_history`` has shape ``(n_trials, n_steps, n_assets)``.
     """
     n_trials, n_steps, n_assets = returns_stack.shape
 
-    # Step indices: 0, 1, 2, ...
     step_indices = jnp.arange(n_steps)
+    # Next step is a rebalance point → reset weights after this step
+    is_next_rebal = jnp.concatenate(
+        [((step_indices[1:] % frequency) == 0), jnp.array([False])]
+    )
 
-    # Boolean mask: True at rebalance points (step 0 is always rebalanced)
-    is_rebalance = (step_indices % frequency) == 0  # (n_steps,)
+    def scan_fn(
+        current_weights: Array,
+        inputs: tuple[Array, Array],
+    ) -> tuple[Array, tuple[Array, Array]]:
+        step_returns, rebal_flag = inputs
+        # Record beginning-of-period weights and compute portfolio return
+        step_return = jnp.sum(step_returns * current_weights, axis=-1)
 
-    # Build beginning-of-period weights step by step
-    # We use a scan-like approach via cumulative products within periods
-    port_returns_list = []
-    weights_history_list = []
-    current_weights = jnp.broadcast_to(target_weights, (n_trials, n_assets))
-
-    for t in range(n_steps):
-        # Record beginning-of-period weights
-        weights_history_list.append(current_weights)
-
-        # Portfolio return at this step
-        step_return = jnp.sum(returns_stack[:, t, :] * current_weights, axis=-1)
-        port_returns_list.append(step_return)
-
-        # Update weights based on asset returns (drift)
-        asset_growth = current_weights * (1.0 + returns_stack[:, t, :])
+        # Drift weights based on asset growth
+        asset_growth = current_weights * (1.0 + step_returns)
         total = jnp.sum(asset_growth, axis=-1, keepdims=True)
-        drifted_weights = asset_growth / total
+        drifted = asset_growth / jnp.maximum(total, 1e-30)
 
-        # Rebalance at next step if it's a rebalance point
-        if t + 1 < n_steps:
-            should_rebalance = is_rebalance[t + 1]
-            next_weights = jnp.where(
-                should_rebalance,
-                jnp.broadcast_to(target_weights, (n_trials, n_assets)),
-                drifted_weights,
-            )
-            current_weights = next_weights
-        else:
-            current_weights = drifted_weights
+        # Rebalance or drift
+        next_weights = jnp.where(
+            rebal_flag,
+            jnp.broadcast_to(target_weights, current_weights.shape),
+            drifted,
+        )
+        return next_weights, (step_return, current_weights)
 
-    port_returns = jnp.stack(port_returns_list, axis=1)
-    weights_history = jnp.stack(weights_history_list, axis=1)
+    init_weights = jnp.broadcast_to(
+        target_weights, (n_trials, n_assets)
+    ).copy()
+
+    # Transpose returns for scan: (n_steps, n_trials, n_assets)
+    returns_t = jnp.transpose(returns_stack, (1, 0, 2))
+
+    _, (port_returns, weights_history) = jax.lax.scan(
+        scan_fn, init_weights, (returns_t, is_next_rebal)
+    )
+
+    # Transpose back: (n_trials, n_steps)
+    port_returns = jnp.transpose(port_returns, (1, 0))
+    weights_history = jnp.transpose(weights_history, (1, 0, 2))
 
     return port_returns, weights_history

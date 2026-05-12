@@ -31,6 +31,24 @@ class LSMCConfig:
     degree: int = 3
     exercise_type: str = "american"
 
+    def __post_init__(self) -> None:
+        """Validate configuration values."""
+        if self.degree < 1:
+            raise ValueError(
+                f"degree must be > 0, got {self.degree}"
+            )
+        valid_bases = {"polynomial", "laguerre"}
+        if self.basis not in valid_bases:
+            raise ValueError(
+                f"basis must be one of {valid_bases}, got {self.basis!r}"
+            )
+        valid_exercises = {"european", "american", "bermudan"}
+        if self.exercise_type not in valid_exercises:
+            raise ValueError(
+                f"exercise_type must be one of {valid_exercises}, "
+                f"got {self.exercise_type!r}"
+            )
+
 
 @dataclass
 class LSMCResult:
@@ -333,5 +351,11 @@ class LSMCPricer:
         Returns:
             Discount factors, shape (n_trials, n_steps).
         """
-        cum_rates = jnp.cumsum(short_rates * dt, axis=1)
+        rate_dt = short_rates * dt
+        # Shift right so D(0, t_0) = 1.0: sum(r_j*dt, j=0..i-1)
+        shifted = jnp.concatenate(
+            [jnp.zeros((short_rates.shape[0], 1)), rate_dt[:, :-1]],
+            axis=1,
+        )
+        cum_rates = jnp.cumsum(shifted, axis=1)
         return jnp.exp(-cum_rates)

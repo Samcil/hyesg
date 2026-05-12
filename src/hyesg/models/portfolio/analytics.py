@@ -84,7 +84,9 @@ class PortfolioAnalytics:
             Sharpe ratio per trial with shape (n_trials,).
         """
         excess = returns - risk_free
-        return jnp.mean(excess, axis=1) / jnp.std(excess, axis=1)
+        std = jnp.std(excess, axis=1)
+        mean = jnp.mean(excess, axis=1)
+        return jnp.where(std > 0, mean / std, 0.0)
 
     @staticmethod
     def volatility(returns: Array) -> Array:
