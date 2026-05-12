@@ -80,8 +80,8 @@ class TestTidyRoundTrip:
         """Single model / single field."""
         to_csv(single_field_result, tmp_path / "out", fmt="tidy")
         loaded = from_csv(tmp_path / "out", fmt="tidy")
-        expected = np.asarray(single_field_result.select("cir", "rate"))
-        actual = np.asarray(loaded.select("cir", "rate"))
+        expected = np.asarray(single_field_result.select("cir", "ShortRate"))
+        actual = np.asarray(loaded.select("cir", "ShortRate"))
         np.testing.assert_allclose(actual, expected, atol=ATOL)
 
     def test_creates_results_csv(self, sample_result, tmp_path):
@@ -207,5 +207,5 @@ class TestEdgeCases:
         """Loaded arrays are JAX arrays."""
         to_csv(sample_result, tmp_path / "out", fmt="tidy")
         loaded = from_csv(tmp_path / "out", fmt="tidy")
-        arr = loaded.select("rates", "short_rate")
+        arr = loaded.select("rates", "ShortRate")
         assert hasattr(arr, "__jax_array__") or "jax" in type(arr).__module__

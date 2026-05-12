@@ -24,7 +24,7 @@ class TestFactorWedge:
             factor_key="size",
             initial_factor_level=100.0,
         )
-        state = {"size": {"level": 110.0}}
+        state = {"size": {"TotalReturnIndex": 110.0}}
         q = fw.exchange_to_base(state, t=1.0)
         assert jnp.isclose(q, 1.1)
 

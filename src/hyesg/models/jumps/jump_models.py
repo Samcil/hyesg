@@ -21,6 +21,7 @@ import jax.numpy as jnp
 
 from hyesg.core.registry import register_model
 from hyesg.core.types import JumpState, ShockConfig
+from hyesg.outputs import OutputName
 
 
 # ── Poisson inverse-CDF helper ──────────────────────────────────────────
@@ -135,9 +136,9 @@ def _jump_step(
         last_jump_size=jump_size,
     )
     outputs = {
-        "jump": jump_size,
-        "drift_adjustment": drift_adj * dt,
-        "n_jumps": n_jumps,
+        OutputName.JUMP: jump_size,
+        OutputName.DRIFT_ADJUSTMENT: drift_adj * dt,
+        OutputName.N_JUMPS: n_jumps,
     }
     return new_state, outputs
 
@@ -221,9 +222,9 @@ class ZeroJumpModel:
         """
         zero = jnp.array(0.0, dtype=jnp.float64)
         outputs = {
-            "jump": zero,
-            "drift_adjustment": zero,
-            "n_jumps": zero,
+            OutputName.JUMP: zero,
+            OutputName.DRIFT_ADJUSTMENT: zero,
+            OutputName.N_JUMPS: zero,
         }
         return state, outputs
 
@@ -479,7 +480,7 @@ class StochasticIntensityJumpModel:
         Returns:
             (new_state, outputs) tuple.
         """
-        intensity = deps[self._intensity_dep]["variance"]
+        intensity = deps[self._intensity_dep][OutputName.VARIANCE]
         return _jump_step(
             state=state,
             uniform=shocks[0],

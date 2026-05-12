@@ -131,7 +131,7 @@ class TestEquityAndDividendYield:
         dy = DividendYield(dividend_yield=0.03, equity_key="eq")
         fw = FactorWedge(factor_spread=0.01, factor_key="fac")
         comp = EquityAndDividendYield(dy, fw)
-        state = {"eq": {"level": 1.0}, "fac": {"level": 1.0}}
+        state = {"eq": {"TotalReturnIndex": 1.0}, "fac": {"TotalReturnIndex": 1.0}}
         # At t=0, both exchange rates should be 1.0
         q = comp.exchange_to_base(state, t=0.0)
         assert jnp.isclose(q, 1.0)

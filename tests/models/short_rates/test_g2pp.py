@@ -201,7 +201,7 @@ class TestG2PPStep:
         state = model.init_state()
         shocks = jnp.array([0.0, 0.0])
         _, outputs = model.step(state, 0.0, 0.25, shocks, {})
-        assert "short_rate" in outputs
+        assert "ShortRate" in outputs
 
     def test_zero_shock(self, model: G2PP) -> None:
         """With zero shocks and x₁=x₂=0, both should stay near zero."""

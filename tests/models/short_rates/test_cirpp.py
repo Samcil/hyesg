@@ -179,7 +179,7 @@ class TestCIRPPStep:
         state = model.init_state()
         shocks = jnp.array([0.0])
         new_state, outputs = model.step(state, 0.0, 0.25, shocks, {})
-        assert "short_rate" in outputs
+        assert "ShortRate" in outputs
 
     def test_zero_shock_drift(self, model: CIRPlusPlus) -> None:
         """With zero shock, CIR factor x should drift toward mu."""

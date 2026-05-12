@@ -112,9 +112,9 @@ class TestCreditStep:
         state = model.init_state()
         shocks = jnp.array([0.0])
         _, outputs = model.step(state, 0.0, 0.25, shocks, {})
-        assert "intensity" in outputs
-        assert "survival_probability" in outputs
-        assert "cum_intensity" in outputs
+        assert "Intensity" in outputs
+        assert "SurvivalProbability" in outputs
+        assert "CumIntensity" in outputs
 
     def test_zero_shock_drift(self, model: Credit) -> None:
         """With zero shock, intensity should drift toward mu."""
@@ -146,7 +146,7 @@ class TestCreditStep:
         survivals = []
         for i in range(10):
             state, outputs = model.step(state, i * 0.25, 0.25, shocks, {})
-            survivals.append(float(outputs["survival_probability"]))
+            survivals.append(float(outputs["SurvivalProbability"]))
         # Each survival should be < previous
         for i in range(1, len(survivals)):
             assert survivals[i] < survivals[i - 1]
@@ -157,7 +157,7 @@ class TestCreditStep:
         shocks = jnp.array([0.5])
         for i in range(20):
             state, outputs = model.step(state, i * 0.25, 0.25, shocks, {})
-            s = float(outputs["survival_probability"])
+            s = float(outputs["SurvivalProbability"])
             assert 0.0 < s <= 1.0
 
     def test_has_defaulted_unchanged(self, model: Credit) -> None:
@@ -286,5 +286,5 @@ class TestCreditSimulation:
         for i in range(400):
             state, outputs = model.step(state, i * 0.25, 0.25, shocks, {})
         # After 100 years with mu=0.02, S ≈ exp(-mu*T) ≈ exp(-2) ≈ 0.135
-        final_surv = float(outputs["survival_probability"])
+        final_surv = float(outputs["SurvivalProbability"])
         assert final_surv < 0.2

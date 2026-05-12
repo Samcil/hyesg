@@ -13,6 +13,8 @@ from typing import Any
 import jax.numpy as jnp
 from jax import Array
 
+from hyesg.outputs import OutputName
+
 from hyesg.core.protocols import ShortRateModel
 
 
@@ -77,7 +79,7 @@ class StandardNominal:
         """
         fx_state = state.get(self._fx_key, {})
         if isinstance(fx_state, dict):
-            return jnp.asarray(fx_state.get("level", 1.0), dtype=jnp.float64)
+            return jnp.asarray(fx_state.get(OutputName.EXCHANGE_RATE, 1.0), dtype=jnp.float64)
         # NamedTuple state — access .level attribute
         return jnp.asarray(getattr(fx_state, "level", 1.0), dtype=jnp.float64)
 

@@ -24,7 +24,7 @@ class TestDividendYield:
             equity_key="eq",
             initial_equity_level=100.0,
         )
-        state = {"eq": {"level": 120.0}}
+        state = {"eq": {"TotalReturnIndex": 120.0}}
         q = dy.exchange_to_base(state, t=1.0)
         assert jnp.isclose(q, 1.2)
 

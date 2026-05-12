@@ -75,7 +75,7 @@ class TestHdf5RoundTrip:
             assert "metadata" in f
             assert "rates" in f["models"]
             assert "equity" in f["models"]
-            assert "short_rate" in f["models"]["rates"]
+            assert "ShortRate" in f["models"]["rates"]
             assert "forward_rate" in f["models"]["rates"]
 
     def test_hdf5_dataset_shapes(self, sample_result, tmp_path):
@@ -85,7 +85,7 @@ class TestHdf5RoundTrip:
 
         with h5py.File(hdf_path, "r") as f:
             assert f["time_grid"].shape == (sample_result.n_steps + 1,)
-            assert f["models"]["rates"]["short_rate"].shape == (4, 3)
+            assert f["models"]["rates"]["ShortRate"].shape == (4, 3)
 
     def test_large_dataset(self, large_result, tmp_path):
         """100 trials × 12 steps."""
@@ -100,8 +100,8 @@ class TestHdf5RoundTrip:
         hdf_path = tmp_path / "results.h5"
         to_hdf5(single_field_result, hdf_path)
         loaded = from_hdf5(hdf_path)
-        expected = np.asarray(single_field_result.select("cir", "rate"))
-        actual = np.asarray(loaded.select("cir", "rate"))
+        expected = np.asarray(single_field_result.select("cir", "ShortRate"))
+        actual = np.asarray(loaded.select("cir", "ShortRate"))
         np.testing.assert_allclose(actual, expected, atol=ATOL)
 
     def test_missing_file_raises(self, tmp_path):
@@ -114,5 +114,5 @@ class TestHdf5RoundTrip:
         hdf_path = tmp_path / "results.h5"
         to_hdf5(sample_result, hdf_path)
         loaded = from_hdf5(hdf_path)
-        arr = loaded.select("rates", "short_rate")
+        arr = loaded.select("rates", "ShortRate")
         assert hasattr(arr, "__jax_array__") or "jax" in type(arr).__module__

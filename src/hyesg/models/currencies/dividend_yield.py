@@ -13,6 +13,8 @@ from typing import Any
 import jax.numpy as jnp
 from jax import Array
 
+from hyesg.outputs import OutputName
+
 
 class DividendYield:
     """FCA dividend yield pseudo-currency.
@@ -70,7 +72,7 @@ class DividendYield:
         eq_state = state.get(self._equity_key, {})
         if isinstance(eq_state, dict):
             level = jnp.asarray(
-                eq_state.get("level", self._initial_level), dtype=jnp.float64
+                eq_state.get(OutputName.TOTAL_RETURN_INDEX, self._initial_level), dtype=jnp.float64
             )
         else:
             level = jnp.asarray(

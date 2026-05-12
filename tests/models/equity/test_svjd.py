@@ -256,9 +256,9 @@ class TestSVJDEquityStep:
         # Expected: log(100) + (0.05 - 0.5*0.04) * (1/12)
         expected = jnp.log(100.0) + (0.05 - 0.5 * 0.04) * (1 / 12)
         assert jnp.isclose(new_log, expected, atol=1e-12)
-        assert "volatility" in outputs
-        assert "jump" in outputs
-        assert jnp.isclose(outputs["jump"], 0.0, atol=1e-15)
+        assert "Sigma" in outputs
+        assert "Jump" in outputs
+        assert jnp.isclose(outputs["Jump"], 0.0, atol=1e-15)
 
     def test_known_shock_step(self) -> None:
         """Known shocks → verify full equation."""
@@ -317,7 +317,7 @@ class TestSVJDEquityStep:
             jnp.array(0.5), jnp.array(0.0),
         )
         assert set(outputs.keys()) == {
-            "log_return", "volatility", "jump", "drift_adjustment"
+            "LogReturn", "Sigma", "Jump", "DriftAdjustment"
         }
 
 
@@ -359,13 +359,13 @@ class TestSVJDEquity:
         state = model.init_state()
         dt = 1 / 12
         shocks = jnp.zeros(4, dtype=jnp.float64)
-        deps: dict = {"rates": {"short_rate": jnp.array(0.05, dtype=jnp.float64)}}
+        deps: dict = {"rates": {"ShortRate": jnp.array(0.05, dtype=jnp.float64)}}
 
         new_state, outputs = model.step(state, 0.0, dt, shocks, deps)
 
-        assert "level" in outputs
-        assert "volatility" in outputs
-        assert jnp.isfinite(outputs["level"])
+        assert "TotalReturnIndex" in outputs
+        assert "Sigma" in outputs
+        assert jnp.isfinite(outputs["TotalReturnIndex"])
 
     def test_jump_adjusted_sigma(self) -> None:
         """Initial sigma is reduced by jump variance component."""
@@ -393,7 +393,7 @@ class TestSVJDEquity:
 
         # Step with known shock
         shocks = jnp.array([0.5, 0.0, 0.5, 0.0], dtype=jnp.float64)
-        deps: dict = {"rates": {"short_rate": jnp.array(r, dtype=jnp.float64)}}
+        deps: dict = {"rates": {"ShortRate": jnp.array(r, dtype=jnp.float64)}}
         new_state, outputs = model.step(state, 0.0, dt, shocks, deps)
 
         # Manual: log(100) + (0.05 - 0.5*σ²)*dt + σ*√dt*0.5
@@ -405,7 +405,7 @@ class TestSVJDEquity:
             + sigma * jnp.sqrt(dt) * 0.5
         )
         assert jnp.isclose(new_state["price_state"].log_level, expected_log, atol=1e-10)
-        assert jnp.isclose(outputs["jump"], 0.0, atol=1e-15)
+        assert jnp.isclose(outputs["Jump"], 0.0, atol=1e-15)
 
     def test_multi_step_produces_positive_prices(self) -> None:
         """Multiple SVJD steps keep prices positive."""
@@ -417,7 +417,7 @@ class TestSVJDEquity:
         state = model.init_state()
         dt = 1 / 12
         key = jax.random.PRNGKey(123)
-        deps: dict = {"rates": {"short_rate": jnp.array(0.04, dtype=jnp.float64)}}
+        deps: dict = {"rates": {"ShortRate": jnp.array(0.04, dtype=jnp.float64)}}
 
         for i in range(24):  # 2 years of monthly steps
             key, subkey = jax.random.split(key)
@@ -425,7 +425,7 @@ class TestSVJDEquity:
             # Convert 3rd shock to uniform
             shocks = raw.at[2].set(jax.scipy.stats.norm.cdf(raw[2]))
             state, outputs = model.step(state, i * dt, dt, shocks, deps)
-            assert outputs["level"] > 0
+            assert outputs["TotalReturnIndex"] > 0
 
     def test_name_property(self) -> None:
         model = SVJDEquity(initial_value=100.0, sigma=0.2, name="my_equity")
@@ -462,8 +462,8 @@ class TestEquityWithVolJumpDeps:
 
         # Provide stochastic vol = 0.3 via deps
         deps: dict = {
-            "rates": {"short_rate": jnp.array(0.05, dtype=jnp.float64)},
-            "cir_vol": {"volatility": jnp.array(0.3, dtype=jnp.float64)},
+            "rates": {"ShortRate": jnp.array(0.05, dtype=jnp.float64)},
+            "cir_vol": {"Sigma": jnp.array(0.3, dtype=jnp.float64)},
         }
         new_state, _ = model.step(state, 0.0, dt, shocks, deps)
 
@@ -488,8 +488,8 @@ class TestEquityWithVolJumpDeps:
         jump_val = jnp.array(0.01, dtype=jnp.float64)
         drift_adj = jnp.array(-0.005, dtype=jnp.float64)
         deps: dict = {
-            "rates": {"short_rate": jnp.array(0.05, dtype=jnp.float64)},
-            "jumps": {"jump": jump_val, "drift_adjustment": drift_adj},
+            "rates": {"ShortRate": jnp.array(0.05, dtype=jnp.float64)},
+            "jumps": {"Jump": jump_val, "DriftAdjustment": drift_adj},
         }
         new_state, _ = model.step(state, 0.0, dt, shocks, deps)
 
@@ -511,7 +511,7 @@ class TestEquityWithVolJumpDeps:
         state = model.init_state()
         dt = 1 / 12
         shocks = jnp.array([0.5], dtype=jnp.float64)
-        deps: dict = {"rates": {"short_rate": jnp.array(0.05, dtype=jnp.float64)}}
+        deps: dict = {"rates": {"ShortRate": jnp.array(0.05, dtype=jnp.float64)}}
 
         new_state, outputs = model.step(state, 0.0, dt, shocks, deps)
 

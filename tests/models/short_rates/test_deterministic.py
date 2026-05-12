@@ -118,7 +118,7 @@ class TestDeterministicStep:
         state = flat_model.init_state()
         for t in [0.0, 0.25, 0.5, 1.0]:
             new_state, outputs = flat_model.step(state, t, 0.25, jnp.array([]), {})
-            assert float(outputs["short_rate"]) == pytest.approx(FLAT_RATE, abs=1e-12)
+            assert float(outputs["ShortRate"]) == pytest.approx(FLAT_RATE, abs=1e-12)
             state = new_state
 
     def test_step_reads_ns_curve(
@@ -131,7 +131,7 @@ class TestDeterministicStep:
             t = i * dt
             new_state, outputs = ns_model.step(state, t, dt, jnp.array([]), {})
             expected = ns_curve.evaluate(t + dt)
-            assert float(outputs["short_rate"]) == pytest.approx(expected, abs=1e-10)
+            assert float(outputs["ShortRate"]) == pytest.approx(expected, abs=1e-10)
             state = new_state
 
     def test_step_x_stays_zero(self, flat_model: Deterministic) -> None:
@@ -143,7 +143,7 @@ class TestDeterministicStep:
     def test_step_output_keys(self, flat_model: Deterministic) -> None:
         state = flat_model.init_state()
         _, outputs = flat_model.step(state, 0.0, 0.25, jnp.array([]), {})
-        assert "short_rate" in outputs
+        assert "ShortRate" in outputs
 
 
 # ─── Analytics ───

@@ -97,8 +97,8 @@ class TestCIRVolStep:
         state = model.init_state()
         shocks = jnp.array([0.0])
         _, outputs = model.step(state, 0.0, 0.25, shocks, {})
-        assert "variance" in outputs
-        assert "volatility" in outputs
+        assert "Variance" in outputs
+        assert "Sigma" in outputs
 
     def test_zero_vol_of_vol_deterministic(self) -> None:
         """With σ=0, variance follows the ODE: V → μ."""
@@ -132,15 +132,15 @@ class TestCIRVolStep:
         new_state, outputs = m.step(state, 0.0, 0.25, shocks, {})
         # Should not be NaN
         assert jnp.isfinite(new_state.variance)
-        assert jnp.isfinite(outputs["volatility"])
+        assert jnp.isfinite(outputs["Sigma"])
 
     def test_volatility_output_is_sqrt_variance(self, model: CIRVolatility) -> None:
         """output['volatility'] = √max(0, V)."""
         state = model.init_state()
         shocks = jnp.array([0.5])
         _, outputs = model.step(state, 0.0, 0.25, shocks, {})
-        expected = float(jnp.sqrt(outputs["variance"]))
-        assert float(outputs["volatility"]) == pytest.approx(expected, abs=1e-12)
+        expected = float(jnp.sqrt(outputs["Variance"]))
+        assert float(outputs["Sigma"]) == pytest.approx(expected, abs=1e-12)
 
     def test_variance_output_floored(self, model: CIRVolatility) -> None:
         """output['variance'] = max(0, V)."""
@@ -148,7 +148,7 @@ class TestCIRVolStep:
         # Large negative shock to force negative raw variance
         shocks = jnp.array([-20.0])
         _, outputs = model.step(state, 0.0, 0.25, shocks, {})
-        assert float(outputs["variance"]) >= 0.0
+        assert float(outputs["Variance"]) >= 0.0
 
     def test_state_variance_can_be_negative(self, model: CIRVolatility) -> None:
         """The raw state variance can go negative (Euler artefact)."""
@@ -160,6 +160,7 @@ class TestCIRVolStep:
         assert jnp.isfinite(new_state.variance)
 
 
+@pytest.mark.slow
 class TestCIRVolStatistical:
     """Statistical tests over many trials."""
 
@@ -213,11 +214,11 @@ class TestCIRVolTimeDependentMu:
         _, out_const = m_const.step(state_const, 1.0, 0.25, shocks, {})
         _, out_curve = m_curve.step(state_curve, 1.0, 0.25, shocks, {})
 
-        assert float(out_const["variance"]) == pytest.approx(
-            float(out_curve["variance"]), abs=1e-12
+        assert float(out_const["Variance"]) == pytest.approx(
+            float(out_curve["Variance"]), abs=1e-12
         )
-        assert float(out_const["volatility"]) == pytest.approx(
-            float(out_curve["volatility"]), abs=1e-12
+        assert float(out_const["Sigma"]) == pytest.approx(
+            float(out_curve["Sigma"]), abs=1e-12
         )
 
     def test_time_dependent_mu_uses_curve(self) -> None:
@@ -239,4 +240,4 @@ class TestCIRVolTimeDependentMu:
 
         # Variance at t=10 should be larger than at t=0 (more drift toward
         # higher mu)
-        assert float(out_t10["variance"]) > float(out_t0["variance"])
+        assert float(out_t10["Variance"]) > float(out_t0["Variance"])

@@ -9,6 +9,7 @@ import jax.numpy as jnp
 from jax import Array
 
 from hyesg.models.lsmc.basis import laguerre_basis, polynomial_basis
+from hyesg.outputs import OutputName
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -166,8 +167,8 @@ class LSMCPricer:
         Returns:
             An ``LSMCResult`` with the option price and diagnostics.
         """
-        paths = result.select(asset_model, "level")
-        short_rates = result.select(rate_model, "short_rate")
+        paths = result.select(asset_model, OutputName.TOTAL_RETURN_INDEX)
+        short_rates = result.select(rate_model, OutputName.SHORT_RATE)
 
         dt = float(result.time_grid[1] - result.time_grid[0])
         discount_factors = self._build_discount_factors(short_rates, dt)

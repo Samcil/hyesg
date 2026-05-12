@@ -13,6 +13,7 @@ import jax.numpy as jnp
 
 from hyesg.core.registry import register_model
 from hyesg.core.types import FXState, ShockConfig
+from hyesg.outputs import OutputName
 
 if TYPE_CHECKING:
     from hyesg.config.params import GBMParams, SeasonalityParams
@@ -140,7 +141,7 @@ class Inflation:
 
         # Real rate from dependency
         r_real = (
-            deps.get(self._real_rate, {}).get("short_rate", zero)
+            deps.get(self._real_rate, {}).get(OutputName.SHORT_RATE, zero)
             if self._real_rate
             else zero
         )
@@ -158,4 +159,4 @@ class Inflation:
         level = jnp.exp(log_new)
 
         new_state = FXState(log_level=log_new, level=level)
-        return new_state, {"index": level, "rate": adjusted_rate}
+        return new_state, {OutputName.INFLATION_INDEX: level, OutputName.INFLATION_RATE: adjusted_rate}

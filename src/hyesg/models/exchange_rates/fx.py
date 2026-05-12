@@ -16,6 +16,7 @@ import jax.numpy as jnp
 
 from hyesg.core.registry import register_model
 from hyesg.core.types import FXState, ShockConfig
+from hyesg.outputs import OutputName
 
 if TYPE_CHECKING:
     from hyesg.config.params import GBMParams
@@ -120,12 +121,12 @@ class FXRate:
 
         # Extract domestic and foreign short rates from deps
         r_d = (
-            deps.get(self._domestic, {}).get("short_rate", zero)
+            deps.get(self._domestic, {}).get(OutputName.SHORT_RATE, zero)
             if self._domestic
             else zero
         )
         r_f = (
-            deps.get(self._foreign, {}).get("short_rate", zero)
+            deps.get(self._foreign, {}).get(OutputName.SHORT_RATE, zero)
             if self._foreign
             else zero
         )
@@ -133,15 +134,15 @@ class FXRate:
         # Volatility: stochastic (from deps) or constant
         if self._vol_model and self._vol_model in deps:
             sigma = deps[self._vol_model].get(
-                "volatility", jnp.array(self._params.sigma, dtype=jnp.float64)
+                OutputName.SIGMA, jnp.array(self._params.sigma, dtype=jnp.float64)
             )
         else:
             sigma = self._params.sigma
 
         # Jump contributions: from deps or zero
         if self._jump_model and self._jump_model in deps:
-            jump = deps[self._jump_model].get("jump", zero)
-            drift_adj = deps[self._jump_model].get("drift_adjustment", zero)
+            jump = deps[self._jump_model].get(OutputName.JUMP, zero)
+            drift_adj = deps[self._jump_model].get(OutputName.DRIFT_ADJUSTMENT, zero)
         else:
             jump = zero
             drift_adj = zero
@@ -156,4 +157,4 @@ class FXRate:
         level = jnp.exp(log_new)
 
         new_state = FXState(log_level=log_new, level=level)
-        return new_state, {"level": level, "rate": level}
+        return new_state, {OutputName.EXCHANGE_RATE: level}

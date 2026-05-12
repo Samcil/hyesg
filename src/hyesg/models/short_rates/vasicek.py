@@ -17,6 +17,7 @@ import jax.numpy as jnp
 from hyesg.core.registry import register_model
 from hyesg.core.types import OUState, ShockConfig
 from hyesg.math.gaussian_helpers import b_func
+from hyesg.outputs import OutputName
 
 if TYPE_CHECKING:
     from hyesg.config.params import OUParams
@@ -116,7 +117,7 @@ class Vasicek:
         short_rate = x_new
 
         new_state = OUState(x=x_new, short_rate=short_rate)
-        outputs = {"short_rate": short_rate}
+        outputs = {OutputName.SHORT_RATE: short_rate}
         return new_state, outputs
 
     # ─── ShortRateModel analytics ───

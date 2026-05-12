@@ -26,6 +26,7 @@ import jax.numpy as jnp
 from hyesg.core.registry import register_model
 from hyesg.core.types import OUState, ShockConfig
 from hyesg.math.curves.protocol import ParametricCurve
+from hyesg.outputs import OutputName
 
 
 @register_model("deterministic")
@@ -121,7 +122,7 @@ class Deterministic:
             x=jnp.array(0.0, dtype=jnp.float64),
             short_rate=short_rate,
         )
-        return new_state, {"short_rate": short_rate}
+        return new_state, {OutputName.SHORT_RATE: short_rate}
 
     # ─── ShortRateModel analytics ───
 

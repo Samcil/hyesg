@@ -44,7 +44,7 @@ class TestStandardNominal:
 
         model = _MockShortRateModel()
         sn = StandardNominal(model, fx_model_key="fx")
-        state = {"fx": {"level": 1.35}, "foreign_nominal": None}
+        state = {"fx": {"ExchangeRate": 1.35}, "foreign_nominal": None}
         q = sn.exchange_to_base(state, t=1.0)
         assert jnp.isclose(q, 1.35)
 

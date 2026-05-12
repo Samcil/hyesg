@@ -127,7 +127,7 @@ class TestInflationStep:
         dt = 1.0 / 12.0
         shocks = jnp.array([0.0])
         deps = {
-            "real_rates": {"short_rate": jnp.array(0.02, dtype=jnp.float64)},
+            "real_rates": {"ShortRate": jnp.array(0.02, dtype=jnp.float64)},
         }
 
         new_state, outputs = model.step(state, 0.0, dt, shocks, deps)
@@ -137,7 +137,7 @@ class TestInflationStep:
         sigma = 0.02
         expected_log = jnp.log(100.0) + (adjusted - 0.5 * sigma**2) * dt
         assert jnp.isclose(new_state.log_level, expected_log, atol=1e-12)
-        assert jnp.isclose(outputs["rate"], adjusted, atol=1e-14)
+        assert jnp.isclose(outputs["InflationRate"], adjusted, atol=1e-14)
 
     def test_zero_vol_deterministic(self) -> None:
         """σ=0 → deterministic index path."""
@@ -150,7 +150,7 @@ class TestInflationStep:
         state = model.init_state()
         dt = 0.25
         shocks = jnp.array([3.0])  # should not matter with σ=0
-        deps = {"real": {"short_rate": jnp.array(0.03, dtype=jnp.float64)}}
+        deps = {"real": {"ShortRate": jnp.array(0.03, dtype=jnp.float64)}}
 
         new_state, _ = model.step(state, 0.0, dt, shocks, deps)
 
@@ -170,7 +170,7 @@ class TestInflationStep:
         sigma = 0.02
         expected_log = jnp.log(100.0) + (-0.5 * sigma**2) * dt
         assert jnp.isclose(new_state.log_level, expected_log, atol=1e-12)
-        assert jnp.isclose(outputs["rate"], 0.0, atol=1e-14)
+        assert jnp.isclose(outputs["InflationRate"], 0.0, atol=1e-14)
 
 
 class TestInflationRegistry:

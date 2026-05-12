@@ -74,7 +74,7 @@ class TestEquityStep:
         dt = 1.0 / 12.0
         dz = jnp.array(0.5, dtype=jnp.float64)
         shocks = jnp.array([dz])
-        deps: dict = {"rates": {"short_rate": jnp.array(0.05, dtype=jnp.float64)}}
+        deps: dict = {"rates": {"ShortRate": jnp.array(0.05, dtype=jnp.float64)}}
 
         new_state, outputs = model.step(state, 0.0, dt, shocks, deps)
 
@@ -85,8 +85,8 @@ class TestEquityStep:
         )
         assert jnp.isclose(new_state.log_level, expected_log, atol=1e-12)
         assert jnp.isclose(new_state.level, jnp.exp(expected_log), atol=1e-10)
-        assert "level" in outputs
-        assert "log_return" in outputs
+        assert "TotalReturnIndex" in outputs
+        assert "LogReturn" in outputs
 
     def test_zero_vol_deterministic(self) -> None:
         """σ=0 → deterministic growth at rate r-q."""
@@ -95,7 +95,7 @@ class TestEquityStep:
         state = model.init_state()
         dt = 0.25
         shocks = jnp.array([1.5])  # should not matter with σ=0
-        deps: dict = {"rates": {"short_rate": jnp.array(0.05, dtype=jnp.float64)}}
+        deps: dict = {"rates": {"ShortRate": jnp.array(0.05, dtype=jnp.float64)}}
 
         new_state, _ = model.step(state, 0.0, dt, shocks, deps)
 
@@ -115,6 +115,7 @@ class TestEquityStep:
         expected_log = jnp.log(100.0) + (-0.5 * sigma**2) * dt
         assert jnp.isclose(new_state.log_level, expected_log, atol=1e-12)
 
+    @pytest.mark.slow
     def test_mean_return_statistical(self) -> None:
         """10000 trials over 1 year → mean close to exp((r-q)T)."""
         params = GBMParams(sigma=0.2, initial_value=1.0)
@@ -132,7 +133,7 @@ class TestEquityStep:
             state = model.init_state()
             for step_i in range(n_steps):
                 shocks = jnp.array([all_shocks[trial, step_i]])
-                deps: dict = {"rates": {"short_rate": jnp.array(r, dtype=jnp.float64)}}
+                deps: dict = {"rates": {"ShortRate": jnp.array(r, dtype=jnp.float64)}}
                 state, _ = model.step(state, step_i * dt, dt, shocks, deps)
             final_levels.append(float(state.level))
 

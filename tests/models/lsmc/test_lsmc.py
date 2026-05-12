@@ -200,6 +200,7 @@ class TestPayoffs:
 # ------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestEuropeanPutConvergence:
     """LSMC European put should converge to the Black-Scholes price."""
 
@@ -268,6 +269,7 @@ class TestEuropeanPutConvergence:
 # ------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestAmericanPremium:
     """American put price should be >= European put price."""
 
@@ -313,6 +315,7 @@ class TestAmericanPremium:
 # ------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestExerciseBoundary:
     def test_boundary_exists_for_american(self) -> None:
         key = jax.random.PRNGKey(55)
@@ -339,6 +342,7 @@ class TestExerciseBoundary:
 # ------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestConvergenceWithPaths:
     def test_more_paths_reduce_std_error(self) -> None:
         """Doubling paths should roughly halve the standard error."""
@@ -380,6 +384,7 @@ class TestBasisSelection:
         pricer = LSMCPricer(config)
         assert pricer._basis_fn.__name__ == "laguerre_basis"
 
+    @pytest.mark.slow
     def test_laguerre_produces_valid_price(self) -> None:
         """Laguerre basis should give a reasonable price.
 
@@ -404,6 +409,7 @@ class TestBasisSelection:
 # ------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestBermudanOption:
     def test_bermudan_between_european_and_american(self) -> None:
         """Bermudan price should lie between European and American."""
@@ -471,6 +477,7 @@ class TestLSMCConfig:
 # ------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestSimulationResultIntegration:
     @pytest.fixture
     def mock_simulation_result(self) -> SimulationResult:
@@ -493,8 +500,8 @@ class TestSimulationResultIntegration:
         short_rates = jnp.full((n_trials, n_steps + 1), r)
 
         outputs = {
-            "equity": {"level": equity_levels},
-            "nominal": {"short_rate": short_rates},
+            "equity": {"TotalReturnIndex": equity_levels},
+            "nominal": {"ShortRate": short_rates},
         }
         time_grid = jnp.linspace(0.0, t, n_steps + 1)
 

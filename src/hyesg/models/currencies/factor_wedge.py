@@ -12,6 +12,8 @@ from typing import Any
 import jax.numpy as jnp
 from jax import Array
 
+from hyesg.outputs import OutputName
+
 
 class FactorWedge:
     """FCA factor wedge pseudo-currency.
@@ -69,7 +71,7 @@ class FactorWedge:
         factor_state = state.get(self._factor_key, {})
         if isinstance(factor_state, dict):
             level = jnp.asarray(
-                factor_state.get("level", self._initial_level),
+                factor_state.get(OutputName.TOTAL_RETURN_INDEX, self._initial_level),
                 dtype=jnp.float64,
             )
         else:

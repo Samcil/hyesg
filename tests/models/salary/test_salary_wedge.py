@@ -372,15 +372,15 @@ class TestOutput:
         """Output dict has salary_rate and salary_index keys."""
         state = model.init_state()
         out = model.output(state)
-        assert "salary_rate" in out
-        assert "salary_index" in out
+        assert "SalaryRate" in out
+        assert "SalaryIndex" in out
 
     def test_output_values_match_state(self, model: SalaryWedgeModel) -> None:
         """Output values match state fields."""
         state = model.init_state()
         out = model.output(state)
-        assert jnp.isclose(out["salary_rate"], state.salary_rate, atol=1e-15)
-        assert jnp.isclose(out["salary_index"], state.salary_index, atol=1e-15)
+        assert jnp.isclose(out["SalaryRate"], state.salary_rate, atol=1e-15)
+        assert jnp.isclose(out["SalaryIndex"], state.salary_index, atol=1e-15)
 
     def test_output_after_step(self, model: SalaryWedgeModel) -> None:
         """Output after step reflects updated state."""
@@ -389,8 +389,8 @@ class TestOutput:
             state, t=0.0, dt=DT, dw1=jnp.float64(0.5), dw2=jnp.float64(-0.2)
         )
         out = model.output(state)
-        assert jnp.isclose(out["salary_rate"], state.salary_rate, atol=1e-15)
-        assert jnp.isclose(out["salary_index"], state.salary_index, atol=1e-15)
+        assert jnp.isclose(out["SalaryRate"], state.salary_rate, atol=1e-15)
+        assert jnp.isclose(out["SalaryIndex"], state.salary_index, atol=1e-15)
 
 
 # ── 9. Import from package ──

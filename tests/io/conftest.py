@@ -23,7 +23,7 @@ def sample_result() -> SimulationResult:
 
     outputs = {
         "rates": {
-            "short_rate": jax.random.normal(k1, (n_trials, n_steps)),
+            "ShortRate": jax.random.normal(k1, (n_trials, n_steps)),
             "forward_rate": jax.random.normal(k2, (n_trials, n_steps)),
         },
         "equity": {
@@ -53,7 +53,7 @@ def large_result() -> SimulationResult:
 
     outputs = {
         "nominal": {
-            "short_rate": jax.random.normal(k1, (n_trials, n_steps)),
+            "ShortRate": jax.random.normal(k1, (n_trials, n_steps)),
             "zcb_price": jax.random.normal(k2, (n_trials, n_steps)),
         },
     }
@@ -82,7 +82,7 @@ def single_field_result() -> SimulationResult:
     key = jax.random.PRNGKey(7)
     outputs = {
         "cir": {
-            "rate": jax.random.normal(key, (2, 5)),
+            "ShortRate": jax.random.normal(key, (2, 5)),
         },
     }
     time_grid = jnp.linspace(0.0, 5.0, 6)

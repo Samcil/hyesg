@@ -97,7 +97,7 @@ class TestVasicekStep:
         state = model.init_state()
         shocks = jnp.array([0.0])
         _, outputs = model.step(state, 0.0, 0.25, shocks, {})
-        assert "short_rate" in outputs
+        assert "ShortRate" in outputs
 
     def test_zero_shock_drift(self, model: Vasicek) -> None:
         """With zero shock, state should drift toward mu."""

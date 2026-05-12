@@ -94,7 +94,7 @@ class DummyModel:
         x_new = state.x + 0.1 * (0.05 - state.x) * dt + 0.01 * dz * jnp.sqrt(dt)
         sv = jnp.maximum(x_new, 0.0)
         new_state = CIRState(x=x_new, state_var=sv, short_rate=sv)
-        return new_state, {"short_rate": sv}
+        return new_state, {"ShortRate": sv}
 
 
 class DummyEquity:
@@ -135,12 +135,12 @@ class DummyEquity:
         deps: dict[str, Any],
     ) -> tuple[FXState, dict[str, Any]]:
         dz = shocks[0]
-        r = deps.get("short_rate", jnp.array(0.0, dtype=jnp.float64))
+        r = deps.get("ShortRate", jnp.array(0.0, dtype=jnp.float64))
         sigma = 0.15
         log_new = state.log_level + (r - 0.5 * sigma**2) * dt + sigma * dz * jnp.sqrt(dt)
         level = jnp.exp(log_new)
         new_state = FXState(log_level=log_new, level=level)
-        return new_state, {"level": level, "log_return": log_new - state.log_level}
+        return new_state, {"TotalReturnIndex": level, "LogReturn": log_new - state.log_level}
 
 
 # ---------------------------------------------------------------------------
@@ -372,7 +372,7 @@ class TestSimulatorSingleModel:
         dummy = DummyModel(name="rates")
         sim = Simulator(config, models={"rates": dummy})
         result = sim.run(seed=42)
-        sr = result.select("rates", "short_rate")
+        sr = result.select("rates", "ShortRate")
         assert sr.shape == (4, 1)
 
     def test_output_finite(self):
@@ -381,7 +381,7 @@ class TestSimulatorSingleModel:
         dummy = DummyModel(name="rates")
         sim = Simulator(config, models={"rates": dummy})
         result = sim.run(seed=42)
-        sr = result.select("rates", "short_rate")
+        sr = result.select("rates", "ShortRate")
         assert jnp.all(jnp.isfinite(sr))
 
     def test_deterministic(self):
@@ -392,8 +392,8 @@ class TestSimulatorSingleModel:
         r1 = sim.run(seed=123)
         r2 = sim.run(seed=123)
         assert jnp.allclose(
-            r1.select("rates", "short_rate"),
-            r2.select("rates", "short_rate"),
+            r1.select("rates", "ShortRate"),
+            r2.select("rates", "ShortRate"),
         )
 
     def test_different_seeds_differ(self):
@@ -403,8 +403,8 @@ class TestSimulatorSingleModel:
         sim = Simulator(config, models={"rates": dummy})
         r1 = sim.run(seed=1)
         r2 = sim.run(seed=2)
-        sr1 = r1.select("rates", "short_rate")
-        sr2 = r2.select("rates", "short_rate")
+        sr1 = r1.select("rates", "ShortRate")
+        sr2 = r2.select("rates", "ShortRate")
         assert not jnp.allclose(sr1, sr2)
 
     def test_metadata_present(self):
@@ -480,7 +480,7 @@ class TestSimulatorTwoModels:
         dummy_equity = DummyEquity(name="stocks")
         sim = Simulator(config, models={"rates": dummy_rates, "stocks": dummy_equity})
         result = sim.run(seed=42)
-        level = result.select("stocks", "level")
+        level = result.select("stocks", "TotalReturnIndex")
         assert level.shape == (4, 1)
 
     def test_equity_uses_rate_dep(self):
@@ -490,7 +490,7 @@ class TestSimulatorTwoModels:
         dummy_equity = DummyEquity(name="stocks")
         sim = Simulator(config, models={"rates": dummy_rates, "stocks": dummy_equity})
         result = sim.run(seed=42)
-        level = result.select("stocks", "level")
+        level = result.select("stocks", "TotalReturnIndex")
         # Equity should have evolved from initial 100 — not exactly 100
         assert not jnp.allclose(level, 100.0)
 
@@ -503,12 +503,12 @@ class TestSimulatorTwoModels:
         r1 = sim.run(seed=99)
         r2 = sim.run(seed=99)
         assert jnp.allclose(
-            r1.select("rates", "short_rate"),
-            r2.select("rates", "short_rate"),
+            r1.select("rates", "ShortRate"),
+            r2.select("rates", "ShortRate"),
         )
         assert jnp.allclose(
-            r1.select("stocks", "level"),
-            r2.select("stocks", "level"),
+            r1.select("stocks", "TotalReturnIndex"),
+            r2.select("stocks", "TotalReturnIndex"),
         )
 
 
@@ -535,7 +535,7 @@ class TestMultiStep:
         dummy = DummyModel(name="rates")
         sim = Simulator(config, models={"rates": dummy})
         result = sim.run(seed=42)
-        sr = result.select("rates", "short_rate")
+        sr = result.select("rates", "ShortRate")
         assert sr.shape == (3, 5)
 
     def test_time_grid_in_result(self):
@@ -570,7 +570,7 @@ class TestMultiStep:
         dummy = DummyModel(name="rates")
         sim = Simulator(config, models={"rates": dummy})
         result = sim.run(seed=42)
-        sr = result.select("rates", "short_rate")
+        sr = result.select("rates", "ShortRate")
         # Not all timesteps should be identical (stochastic)
         assert sr.shape[1] == 10
         # Check that values vary across timesteps for trial 0
@@ -600,7 +600,7 @@ class TestVmapBatching:
         dummy = DummyModel(name="rates")
         sim = Simulator(config, models={"rates": dummy})
         result = sim.run(seed=42)
-        sr = result.select("rates", "short_rate")
+        sr = result.select("rates", "ShortRate")
         assert sr.shape == (10, 2)
 
     def test_trials_differ(self):
@@ -618,7 +618,7 @@ class TestVmapBatching:
         dummy = DummyModel(name="rates")
         sim = Simulator(config, models={"rates": dummy})
         result = sim.run(seed=42)
-        sr = result.select("rates", "short_rate")
+        sr = result.select("rates", "ShortRate")
         # Different trials should give different values
         assert not jnp.allclose(sr[0], sr[1])
 
@@ -775,7 +775,7 @@ class TestRealCIRModel:
         cir = CIR(params=cir_params, name="nominal")
         sim = Simulator(config, models={"nominal": cir})
         result = sim.run(seed=42)
-        sr = result.select("nominal", "short_rate")
+        sr = result.select("nominal", "ShortRate")
         assert sr.shape == (4, 1)
         assert jnp.all(jnp.isfinite(sr))
 
@@ -788,7 +788,7 @@ class TestRealCIRModel:
         cir = CIR(params=cir_params, name="nominal")
         sim = Simulator(config, models={"nominal": cir})
         result = sim.run(seed=42)
-        sr = result.select("nominal", "short_rate")
+        sr = result.select("nominal", "ShortRate")
         assert sr.shape == (3, 5)
         # CIR should stay non-negative (floored)
         assert jnp.all(sr >= 0.0)
@@ -804,8 +804,8 @@ class TestRealCIRModel:
         r1 = sim.run(seed=77)
         r2 = sim.run(seed=77)
         assert jnp.allclose(
-            r1.select("nominal", "short_rate"),
-            r2.select("nominal", "short_rate"),
+            r1.select("nominal", "ShortRate"),
+            r2.select("nominal", "ShortRate"),
         )
 
 
@@ -851,8 +851,8 @@ class TestRealCIREquity:
 
         assert "rates" in result.model_names
         assert "stocks" in result.model_names
-        sr = result.select("rates", "short_rate")
-        level = result.select("stocks", "level")
+        sr = result.select("rates", "ShortRate")
+        level = result.select("stocks", "TotalReturnIndex")
         assert sr.shape == (3, 2)
         assert level.shape == (3, 2)
         assert jnp.all(jnp.isfinite(sr))

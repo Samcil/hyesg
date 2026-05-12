@@ -78,8 +78,8 @@ class TestFXStep:
         for step_i in range(n_steps):
             shocks = jnp.array([0.0])
             deps = {
-                "domestic": {"short_rate": jnp.array(0.05, dtype=jnp.float64)},
-                "foreign": {"short_rate": jnp.array(0.01, dtype=jnp.float64)},
+                "domestic": {"ShortRate": jnp.array(0.05, dtype=jnp.float64)},
+                "foreign": {"ShortRate": jnp.array(0.01, dtype=jnp.float64)},
             }
             state, _ = model.step(state, step_i * dt, dt, shocks, deps)
 
@@ -100,15 +100,15 @@ class TestFXStep:
         dt = 0.5
         shocks = jnp.array([2.0])  # should not matter with σ=0
         deps = {
-            "dom": {"short_rate": jnp.array(0.06, dtype=jnp.float64)},
-            "for": {"short_rate": jnp.array(0.02, dtype=jnp.float64)},
+            "dom": {"ShortRate": jnp.array(0.06, dtype=jnp.float64)},
+            "for": {"ShortRate": jnp.array(0.02, dtype=jnp.float64)},
         }
 
         new_state, outputs = model.step(state, 0.0, dt, shocks, deps)
 
         expected = jnp.exp((0.06 - 0.02) * dt)
         assert jnp.isclose(new_state.level, expected, atol=1e-12)
-        assert jnp.isclose(outputs["level"], expected, atol=1e-12)
+        assert jnp.isclose(outputs["ExchangeRate"], expected, atol=1e-12)
 
     def test_no_deps_zero_rates(self) -> None:
         """Works with zero rates when no dep models configured."""

@@ -10,6 +10,8 @@ from __future__ import annotations
 import jax.numpy as jnp
 import pytest
 
+pytestmark = pytest.mark.slow
+
 # Ensure model registry is populated
 import hyesg.models  # noqa: F401
 from hyesg.config.models import (
@@ -78,7 +80,7 @@ class TestSingleCIRModel:
         result = sim.run()
 
         assert isinstance(result, SimulationResult)
-        short_rate = result.select("nominal", "short_rate")
+        short_rate = result.select("nominal", "ShortRate")
         assert short_rate.shape == (n_trials, n_steps)
         assert jnp.all(jnp.isfinite(short_rate))
 
@@ -95,7 +97,7 @@ class TestSingleCIRModel:
         )
         sim = Simulator(config, models={"nominal": cir_model})
         result = sim.run()
-        short_rate = result.select("nominal", "short_rate")
+        short_rate = result.select("nominal", "ShortRate")
         # state_var is floored at 0 → short_rate >= 0
         assert jnp.all(short_rate >= 0.0)
 
@@ -114,7 +116,7 @@ class TestSingleCIRModel:
         )
         sim = Simulator(config, models={"nominal": cir_model})
         result = sim.run()
-        short_rate = result.select("nominal", "short_rate")
+        short_rate = result.select("nominal", "ShortRate")
         mean_final = float(jnp.mean(short_rate[:, -1]))
         # Final mean should be closer to mu than starting x0
         assert abs(mean_final - mu) < abs(x0 - mu)
@@ -156,9 +158,9 @@ class TestRateEquityDependency:
 
         assert "nominal" in result.outputs
         assert "equity" in result.outputs
-        assert result.select("nominal", "short_rate").shape == (n_trials, n_steps)
-        assert result.select("equity", "level").shape == (n_trials, n_steps)
-        assert result.select("equity", "log_return").shape == (n_trials, n_steps)
+        assert result.select("nominal", "ShortRate").shape == (n_trials, n_steps)
+        assert result.select("equity", "TotalReturnIndex").shape == (n_trials, n_steps)
+        assert result.select("equity", "LogReturn").shape == (n_trials, n_steps)
 
     def test_equity_level_is_positive(self) -> None:
         """Equity level should always be positive (log-normal process)."""
@@ -183,12 +185,8 @@ class TestRateEquityDependency:
             config, models={"nominal": cir_model, "equity": equity_model}
         )
         result = sim.run()
-        level = result.select("equity", "level")
+        level = result.select("equity", "TotalReturnIndex")
         assert jnp.all(level > 0.0)
-
-
-# ---------------------------------------------------------------------------
-# Scenario 3: Multi-model (3+ models)
 # ---------------------------------------------------------------------------
 
 
@@ -233,12 +231,12 @@ class TestMultiModel:
         result = sim.run()
 
         assert sorted(result.model_names) == ["equity", "inflation", "nominal"]
-        assert result.select("nominal", "short_rate").shape == (n_trials, n_steps)
-        assert result.select("inflation", "index").shape == (n_trials, n_steps)
-        assert result.select("equity", "level").shape == (n_trials, n_steps)
-        assert jnp.all(jnp.isfinite(result.select("nominal", "short_rate")))
-        assert jnp.all(jnp.isfinite(result.select("inflation", "index")))
-        assert jnp.all(jnp.isfinite(result.select("equity", "level")))
+        assert result.select("nominal", "ShortRate").shape == (n_trials, n_steps)
+        assert result.select("inflation", "InflationIndex").shape == (n_trials, n_steps)
+        assert result.select("equity", "TotalReturnIndex").shape == (n_trials, n_steps)
+        assert jnp.all(jnp.isfinite(result.select("nominal", "ShortRate")))
+        assert jnp.all(jnp.isfinite(result.select("inflation", "InflationIndex")))
+        assert jnp.all(jnp.isfinite(result.select("equity", "TotalReturnIndex")))
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +267,7 @@ class TestMultiRegime:
         sim = Simulator(config, models={"nominal": cir_model})
         result = sim.run_all_regimes()
 
-        short_rate = result.select("nominal", "short_rate")
+        short_rate = result.select("nominal", "ShortRate")
         assert short_rate.shape == (n1 + n2, n_steps)
         assert result.n_trials == n1 + n2
 
@@ -292,8 +290,8 @@ class TestMultiRegime:
         res1 = sim.run(regime_idx=0)
         res2 = sim.run(regime_idx=1)
 
-        r1 = res1.select("nominal", "short_rate")
-        r2 = res2.select("nominal", "short_rate")
+        r1 = res1.select("nominal", "ShortRate")
+        r2 = res2.select("nominal", "ShortRate")
         # Means across trials should differ for different seeds
         assert not jnp.allclose(r1, r2)
 
@@ -335,8 +333,8 @@ class TestCorrelation:
         )
         result = sim.run()
 
-        ra = result.select("rate_a", "short_rate")[:, -1]
-        rb = result.select("rate_b", "short_rate")[:, -1]
+        ra = result.select("rate_a", "ShortRate")[:, -1]
+        rb = result.select("rate_b", "ShortRate")[:, -1]
         # Compute sample correlation
         corr = jnp.corrcoef(jnp.stack([ra, rb]))[0, 1]
         assert float(corr) > 0.3, f"Expected positive correlation, got {corr}"
@@ -364,8 +362,8 @@ class TestDeterminism:
 
         sim1 = Simulator(config, models={"nominal": cir_model})
         sim2 = Simulator(config, models={"nominal": cir_model})
-        r1 = sim1.run().select("nominal", "short_rate")
-        r2 = sim2.run().select("nominal", "short_rate")
+        r1 = sim1.run().select("nominal", "ShortRate")
+        r2 = sim2.run().select("nominal", "ShortRate")
         assert jnp.array_equal(r1, r2)
 
 
@@ -467,16 +465,16 @@ class TestHighLevelAPI:
         result = sim.run()
 
         # select works
-        sr = result.select("nominal", "short_rate")
+        sr = result.select("nominal", "ShortRate")
         assert sr.shape == (30, 5)
 
         # to_dict works
         flat = result.to_dict()
-        assert "nominal.short_rate" in flat
+        assert "nominal.ShortRate" in flat
 
         # KeyError on bad model
         with pytest.raises(KeyError):
-            result.select("nonexistent", "short_rate")
+            result.select("nonexistent", "ShortRate")
 
         # KeyError on bad field
         with pytest.raises(KeyError):

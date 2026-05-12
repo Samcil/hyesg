@@ -122,7 +122,7 @@ class TestG1PPStep:
         state = model.init_state()
         shocks = jnp.array([0.0])
         _, outputs = model.step(state, 0.0, 0.25, shocks, {})
-        assert "short_rate" in outputs
+        assert "ShortRate" in outputs
 
     def test_zero_shock(self, model: G1PP) -> None:
         """With zero shock and x=0, x should stay near zero."""

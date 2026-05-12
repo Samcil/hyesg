@@ -18,6 +18,7 @@ from jax import Array
 
 from hyesg.models.portfolio.analytics import PortfolioAnalytics
 from hyesg.models.portfolio.result import PortfolioConfig, PortfolioResult
+from hyesg.outputs import OutputName
 
 if TYPE_CHECKING:
     from hyesg.engine.output import SimulationResult
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Default output field used when extracting asset returns
-_DEFAULT_RETURN_FIELD = "log_return"
+_DEFAULT_RETURN_FIELD = OutputName.LOG_RETURN
 
 
 class Portfolio:

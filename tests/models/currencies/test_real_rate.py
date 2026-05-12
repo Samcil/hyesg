@@ -44,7 +44,7 @@ class TestRealRate:
 
         model = _MockShortRateModel()
         rr = RealRate(model, inflation_key="cpi")
-        state = {"cpi": {"index": 1.15}, "real_rate": None}
+        state = {"cpi": {"InflationIndex": 1.15}, "real_rate": None}
         q = rr.exchange_to_base(state, t=1.0)
         assert jnp.isclose(q, 1.15)
 

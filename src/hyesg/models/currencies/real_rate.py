@@ -14,6 +14,8 @@ from typing import Any
 import jax.numpy as jnp
 from jax import Array
 
+from hyesg.outputs import OutputName
+
 from hyesg.core.protocols import ShortRateModel
 
 
@@ -79,7 +81,7 @@ class RealRate:
         infl_state = state.get(self._inflation_key, {})
         if isinstance(infl_state, dict):
             return jnp.asarray(
-                infl_state.get("index", 1.0), dtype=jnp.float64
+                infl_state.get(OutputName.INFLATION_INDEX, 1.0), dtype=jnp.float64
             )
         return jnp.asarray(
             getattr(infl_state, "level", 1.0), dtype=jnp.float64

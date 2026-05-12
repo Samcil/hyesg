@@ -88,8 +88,8 @@ class TestParquetRoundTrip:
         """Single model / single field."""
         to_parquet(single_field_result, tmp_path / "pq")
         loaded = from_parquet(tmp_path / "pq")
-        expected = np.asarray(single_field_result.select("cir", "rate"))
-        actual = np.asarray(loaded.select("cir", "rate"))
+        expected = np.asarray(single_field_result.select("cir", "ShortRate"))
+        actual = np.asarray(loaded.select("cir", "ShortRate"))
         np.testing.assert_allclose(actual, expected, atol=ATOL)
 
     def test_creates_parquet_files(self, sample_result, tmp_path):
@@ -109,5 +109,5 @@ class TestParquetRoundTrip:
         """Loaded arrays are JAX arrays."""
         to_parquet(sample_result, tmp_path / "pq")
         loaded = from_parquet(tmp_path / "pq")
-        arr = loaded.select("rates", "short_rate")
+        arr = loaded.select("rates", "ShortRate")
         assert hasattr(arr, "__jax_array__") or "jax" in type(arr).__module__

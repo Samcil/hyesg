@@ -24,7 +24,7 @@ jax.config.update("jax_enable_x64", True)
 def _make_simulation_result(
     asset_returns: dict[str, jax.Array],
     n_steps: int | None = None,
-    return_field: str = "log_return",
+    return_field: str = "LogReturn",
 ) -> SimulationResult:
     """Build a minimal SimulationResult from asset return arrays."""
     outputs: dict[str, dict[str, jax.Array]] = {}
@@ -268,8 +268,8 @@ class TestCurrencyAdjustment:
         r_fx = jnp.array([[0.02, -0.01]])
 
         outputs = {
-            "foreign_eq": {"log_return": r_asset},
-            "fx_foreign_eq": {"log_return": r_fx},
+            "foreign_eq": {"LogReturn": r_asset},
+            "fx_foreign_eq": {"LogReturn": r_fx},
         }
         time_grid = jnp.linspace(0.0, 2.0, 3)
         sim_result = SimulationResult(outputs=outputs, time_grid=time_grid)
@@ -301,8 +301,8 @@ class TestCurrencyAdjustment:
         r_asset = jnp.array([[0.10, 0.05]])
         r_fx = jnp.array([[0.02, -0.01]])
         outputs = {
-            "eq": {"log_return": r_asset},
-            "fx_eq": {"log_return": r_fx},
+            "eq": {"LogReturn": r_asset},
+            "fx_eq": {"LogReturn": r_fx},
         }
         time_grid = jnp.linspace(0.0, 2.0, 3)
         sim_result = SimulationResult(outputs=outputs, time_grid=time_grid)

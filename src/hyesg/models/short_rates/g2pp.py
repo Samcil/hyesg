@@ -32,6 +32,7 @@ from hyesg.core.registry import register_model
 from hyesg.core.types import G2State, ShockConfig
 from hyesg.math.gaussian_helpers import b_func, variance_integral_ou
 from hyesg.math.transforms import forward_to_zcbp
+from hyesg.outputs import OutputName
 
 if TYPE_CHECKING:
     from hyesg.config.params import G2PPParams
@@ -248,7 +249,7 @@ class G2PP:
         short_rate = x1_new + x2_new + phi_new
 
         new_state = G2State(x1=x1_new, x2=x2_new, short_rate=short_rate)
-        outputs = {"short_rate": short_rate}
+        outputs = {OutputName.SHORT_RATE: short_rate}
         return new_state, outputs
 
     # ─── ShortRateModel analytics ───

@@ -10,6 +10,7 @@ jax.config.update("jax_enable_x64", True)
 from hyesg.config.models import SimulationConfig
 from hyesg.engine.output import SimulationResult
 from hyesg.engine.simulator import Simulator
+from hyesg.outputs import OutputName
 
 
 def simulate(config: SimulationConfig) -> SimulationResult:

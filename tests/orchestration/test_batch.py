@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import hyesg.models  # noqa: F401
 from hyesg.config.models import (
     ModelConfig,
@@ -43,6 +45,7 @@ def _make_config(name: str, seed: int = 42) -> SimulationConfig:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestBatchRunnerSequential:
     """Tests for BatchRunner.run_sequential."""
 
@@ -103,8 +106,8 @@ class TestBatchRunnerSequential:
         c1 = _make_config("a", seed=1)
         c2 = _make_config("b", seed=999)
         batch = BatchRunner([c1, c2]).run_sequential()
-        r1 = batch.results[0].select("nominal", "short_rate")
-        r2 = batch.results[1].select("nominal", "short_rate")
+        r1 = batch.results[0].select("nominal", "ShortRate")
+        r2 = batch.results[1].select("nominal", "ShortRate")
         import jax.numpy as jnp
 
         assert not jnp.allclose(r1, r2)
@@ -160,6 +163,7 @@ class TestBatchRunnerProgress:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestBatchRunnerParallel:
     """Tests for BatchRunner.run_parallel."""
 

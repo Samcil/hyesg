@@ -61,9 +61,9 @@ class TestZeroJumpModel:
         m = ZeroJumpModel()
         state = m.init_state()
         new_state, out = m.step(state, 0.0, 0.25, jnp.array([]), {})
-        assert float(out["jump"]) == pytest.approx(0.0)
-        assert float(out["drift_adjustment"]) == pytest.approx(0.0)
-        assert float(out["n_jumps"]) == pytest.approx(0.0)
+        assert float(out["Jump"]) == pytest.approx(0.0)
+        assert float(out["DriftAdjustment"]) == pytest.approx(0.0)
+        assert float(out["NJumps"]) == pytest.approx(0.0)
         # State unchanged
         assert float(new_state.cum_jumps) == pytest.approx(0.0)
 
@@ -85,8 +85,8 @@ class TestConstantIntensityZeroLambda:
         state = m.init_state()
         shocks = jnp.array([0.5, 0.3])
         new_state, out = m.step(state, 0.0, 0.25, shocks, {})
-        assert float(out["n_jumps"]) == pytest.approx(0.0)
-        assert float(out["jump"]) == pytest.approx(0.0)
+        assert float(out["NJumps"]) == pytest.approx(0.0)
+        assert float(out["Jump"]) == pytest.approx(0.0)
 
 
 # ── 3. Drift adjustment formula ─────────────────────────────────────────
@@ -117,7 +117,7 @@ class TestDriftAdjustment:
         _, out = m.step(state, 0.0, dt, shocks, {})
 
         expected = -lam * (jnp.exp(mu_j + 0.5 * sig_j**2) - 1.0) * dt
-        assert float(out["drift_adjustment"]) == pytest.approx(
+        assert float(out["DriftAdjustment"]) == pytest.approx(
             float(expected), abs=1e-12
         )
 
@@ -193,8 +193,8 @@ class TestJumpSizeStatistics:
             z = jax.random.normal(k2, dtype=jnp.float64)
             shocks = jnp.array([u, z])
             _, out = m.step(state, 0.0, dt, shocks, {})
-            jumps.append(float(out["jump"]))
-            n_jumps_list.append(float(out["n_jumps"]))
+            jumps.append(float(out["Jump"]))
+            n_jumps_list.append(float(out["NJumps"]))
 
         jumps = jnp.array(jumps)
         n_arr = jnp.array(n_jumps_list)
@@ -211,7 +211,7 @@ class TestJumpSizeStatistics:
 
 
 class TestStochasticIntensity:
-    """StochasticIntensityJumpModel reads λ from deps["cir_vol"]["variance"]."""
+    """StochasticIntensityJumpModel reads λ from deps["cir_vol"]["Variance"]."""
 
     def test_reads_intensity_from_deps(self) -> None:
         m = StochasticIntensityJumpModel(
@@ -220,21 +220,21 @@ class TestStochasticIntensity:
         state = m.init_state()
         dt = 0.25
         # High intensity → likely to see jumps with u near 1
-        deps = {"cir_vol": {"variance": jnp.array(10.0, dtype=jnp.float64)}}
+        deps = {"cir_vol": {"Variance": jnp.array(10.0, dtype=jnp.float64)}}
         shocks = jnp.array([0.999, 1.0])
         _, out = m.step(state, 0.0, dt, shocks, deps)
         # With λ·dt = 2.5 and u = 0.999, should have multiple jumps
-        assert float(out["n_jumps"]) >= 1.0
+        assert float(out["NJumps"]) >= 1.0
 
     def test_zero_variance_no_jumps(self) -> None:
         m = StochasticIntensityJumpModel(
             jump_mean=-0.05, jump_vol=0.1, intensity_dep="vol"
         )
         state = m.init_state()
-        deps = {"vol": {"variance": jnp.array(0.0, dtype=jnp.float64)}}
+        deps = {"vol": {"Variance": jnp.array(0.0, dtype=jnp.float64)}}
         shocks = jnp.array([0.5, 0.5])
         _, out = m.step(state, 0.0, 0.25, shocks, deps)
-        assert float(out["n_jumps"]) == pytest.approx(0.0)
+        assert float(out["NJumps"]) == pytest.approx(0.0)
 
     def test_registry_lookup(self) -> None:
         cls = get_model("stochastic_jump")
@@ -263,8 +263,8 @@ class TestCumulativeJumps:
             z = jax.random.normal(k2, dtype=jnp.float64)
             shocks = jnp.array([u, z])
             state, out = m.step(state, i * dt, dt, shocks, {})
-            total_jump += float(out["jump"])
-            total_n += float(out["n_jumps"])
+            total_jump += float(out["Jump"])
+            total_n += float(out["NJumps"])
 
         assert float(state.cum_jumps) == pytest.approx(total_jump, abs=1e-10)
         assert float(state.n_jumps) == pytest.approx(total_n, abs=1e-10)
@@ -289,8 +289,8 @@ class TestJITSafety:
 
         new_state, out = do_step(state, shocks)
         # Smoke test: outputs are finite
-        assert jnp.isfinite(out["jump"])
-        assert jnp.isfinite(out["drift_adjustment"])
+        assert jnp.isfinite(out["Jump"])
+        assert jnp.isfinite(out["DriftAdjustment"])
 
     def test_zero_jit_compiles(self) -> None:
         m = ZeroJumpModel()
@@ -301,7 +301,7 @@ class TestJITSafety:
             return m.step(s, 0.0, 0.25, jnp.array([]), {})
 
         new_state, out = do_step(state)
-        assert float(out["jump"]) == pytest.approx(0.0)
+        assert float(out["Jump"]) == pytest.approx(0.0)
 
     def test_stochastic_jit_compiles(self) -> None:
         m = StochasticIntensityJumpModel(
@@ -309,11 +309,11 @@ class TestJITSafety:
         )
         state = m.init_state()
         shocks = jnp.array([0.5, 0.3])
-        deps = {"vol": {"variance": jnp.array(2.0, dtype=jnp.float64)}}
+        deps = {"vol": {"Variance": jnp.array(2.0, dtype=jnp.float64)}}
 
         @jax.jit
         def do_step(s, sh, v):
-            return m.step(s, 0.0, 0.25, sh, {"vol": {"variance": v}})
+            return m.step(s, 0.0, 0.25, sh, {"vol": {"Variance": v}})
 
         new_state, out = do_step(state, shocks, jnp.array(2.0, dtype=jnp.float64))
-        assert jnp.isfinite(out["jump"])
+        assert jnp.isfinite(out["Jump"])

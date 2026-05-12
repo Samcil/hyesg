@@ -23,11 +23,11 @@ def sample_outputs() -> dict[str, dict[str, jnp.ndarray]]:
     n_trials, n_steps = 5, 10
     return {
         "cir": {
-            "short_rate": jnp.ones((n_trials, n_steps)) * 0.03,
+            "ShortRate": jnp.ones((n_trials, n_steps)) * 0.03,
         },
         "equity": {
-            "level": jnp.ones((n_trials, n_steps)) * 100.0,
-            "log_return": jnp.zeros((n_trials, n_steps)),
+            "TotalReturnIndex": jnp.ones((n_trials, n_steps)) * 100.0,
+            "LogReturn": jnp.zeros((n_trials, n_steps)),
         },
     }
 
@@ -127,13 +127,13 @@ class TestSelect:
 
     def test_select_existing(self, sample_result):
         """Select an existing field."""
-        arr = sample_result.select("cir", "short_rate")
+        arr = sample_result.select("cir", "ShortRate")
         assert arr.shape == (5, 10)
         assert jnp.allclose(arr, 0.03)
 
     def test_select_equity_level(self, sample_result):
         """Select equity level field."""
-        arr = sample_result.select("equity", "level")
+        arr = sample_result.select("equity", "TotalReturnIndex")
         assert arr.shape == (5, 10)
 
     def test_select_missing_model(self, sample_result):
@@ -158,9 +158,9 @@ class TestToDict:
     def test_to_dict_keys(self, sample_result):
         """Flattened dict has model.field keys."""
         flat = sample_result.to_dict()
-        assert "cir.short_rate" in flat
-        assert "equity.level" in flat
-        assert "equity.log_return" in flat
+        assert "cir.ShortRate" in flat
+        assert "equity.TotalReturnIndex" in flat
+        assert "equity.LogReturn" in flat
 
     def test_to_dict_count(self, sample_result):
         """Correct number of entries in flattened dict."""
@@ -170,7 +170,7 @@ class TestToDict:
     def test_to_dict_values(self, sample_result):
         """Flattened values match originals."""
         flat = sample_result.to_dict()
-        assert jnp.allclose(flat["cir.short_rate"], 0.03)
+        assert jnp.allclose(flat["cir.ShortRate"], 0.03)
 
     def test_to_dict_empty(self):
         """Empty result produces empty dict."""
@@ -194,15 +194,15 @@ class TestExtractOutputs:
         result = extract_outputs(sample_outputs, None)
         assert "cir" in result
         assert "equity" in result
-        assert "short_rate" in result["cir"]
+        assert "ShortRate" in result["cir"]
 
     def test_extract_filtered(self, sample_outputs):
         """Filter with OutputSpec."""
         specs = [
             OutputSpec(
                 model_name="cir",
-                member_name="short_rate",
-                output_name="short_rate",
+                member_name="ShortRate",
+                output_name="ShortRate",
             ),
         ]
         result = extract_outputs(sample_outputs, specs)
@@ -214,13 +214,13 @@ class TestExtractOutputs:
         specs = [
             OutputSpec(
                 model_name="equity",
-                member_name="level",
+                member_name="TotalReturnIndex",
                 output_name="equity_price",
             ),
         ]
         result = extract_outputs(sample_outputs, specs)
         assert "equity_price" in result["equity"]
-        assert "level" not in result["equity"]
+        assert "TotalReturnIndex" not in result["equity"]
 
     def test_extract_missing_model(self, sample_outputs):
         """Missing model in specs is silently skipped."""

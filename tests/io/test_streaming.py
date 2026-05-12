@@ -29,7 +29,7 @@ class TestStreamingWriter:
             t = float(step) * 0.25
             step_outputs = {
                 "model_a": {
-                    "rate": jnp.ones(n_trials) * (step + 1) * 0.01,
+                    "ShortRate": jnp.ones(n_trials) * (step + 1) * 0.01,
                 },
             }
             writer.write_timestep(t, step_outputs)
