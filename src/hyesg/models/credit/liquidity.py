@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, NamedTuple, Protocol, runtime_checkable
 
 import jax.numpy as jnp
 
+from hyesg.math.cir_formulas import cir_euler_step
 from hyesg.models.credit.intensity_transform import (
     IntensityTransform,
     ScaledIntensityTransform,
@@ -42,11 +43,12 @@ class LiquidityState(NamedTuple):
 class LiquidityProcess(Protocol):
     """Protocol for liquidity event processes."""
 
-    def init_state(self, key: Array) -> LiquidityState:
+    def init_state(self, key: Array | None = None) -> LiquidityState:
         """Create initial liquidity state.
 
         Args:
-            key: JAX PRNG key for threshold draw.
+            key: JAX PRNG key for threshold draw. If None, a default
+                key is created internally.
 
         Returns:
             Initial ``LiquidityState``.
@@ -122,18 +124,22 @@ class CIRLiquidityProcess:
         """Recovery rate on liquidity event."""
         return self._recovery_rate
 
-    def init_state(self, key: Array) -> LiquidityState:
+    def init_state(self, key: Array | None = None) -> LiquidityState:
         """Create initial liquidity state.
 
         Draws a uniform threshold for Cox process default detection.
 
         Args:
-            key: JAX PRNG key.
+            key: JAX PRNG key. If None, a default key is created
+                internally.
 
         Returns:
             Initial ``LiquidityState``.
         """
         import jax
+
+        if key is None:
+            key = jax.random.PRNGKey(0)
 
         u = jax.random.uniform(key, dtype=jnp.float64)
         return LiquidityState(
@@ -167,9 +173,7 @@ class CIRLiquidityProcess:
         x = state.intensity
 
         # CIR Euler step with floored diffusion
-        drift = self._alpha * (self._mu - x) * dt
-        diffusion = self._sigma * jnp.sqrt(jnp.maximum(x, 0.0) * dt) * dz
-        x_new = jnp.maximum(x + drift + diffusion, 0.0)
+        _, x_new = cir_euler_step(x, self._alpha, self._mu, self._sigma, dt, dz)
 
         # Apply RN→RW transform for real-world intensity
         rw_intensity = self._transform.transform(x_new)

@@ -54,17 +54,14 @@ from hyesg.core.enums import (
     RecoveryType,
 )
 from hyesg.core.protocols import (
-    BondOptionPricing,
     CreditModel,
     CurrencyAnalogy,
     ExchangeRateModel,
     Model,
     Named,
-    PortfolioModel,
     PostProcessor,
     ShortRateModel,
     StochasticProcess,
-    SwaptionPricing,
     YieldCurveProtocol,
 )
 from hyesg.core.registry import (
@@ -145,17 +142,14 @@ __all__ = [
     "RebalancingStrategy",
     "RecoveryType",
     # protocols
-    "BondOptionPricing",
     "CreditModel",
     "CurrencyAnalogy",
     "ExchangeRateModel",
     "Model",
     "Named",
-    "PortfolioModel",
     "PostProcessor",
     "ShortRateModel",
     "StochasticProcess",
-    "SwaptionPricing",
     "YieldCurveProtocol",
     # registry
     "clear_registry",

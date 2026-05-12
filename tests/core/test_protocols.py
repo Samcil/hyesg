@@ -7,17 +7,14 @@ from typing import TYPE_CHECKING, Any
 import jax.numpy as jnp
 
 from hyesg.core.protocols import (
-    BondOptionPricing,
     CreditModel,
     CurrencyAnalogy,
     ExchangeRateModel,
     Model,
     Named,
-    PortfolioModel,
     PostProcessor,
     ShortRateModel,
     StochasticProcess,
-    SwaptionPricing,
     YieldCurveProtocol,
 )
 from hyesg.core.types import ShockConfig
@@ -40,12 +37,6 @@ class TestProtocolsAreRuntimeCheckable:
     def test_short_rate_model(self) -> None:
         assert hasattr(ShortRateModel, "_is_runtime_protocol")
 
-    def test_bond_option_pricing(self) -> None:
-        assert hasattr(BondOptionPricing, "_is_runtime_protocol")
-
-    def test_swaption_pricing(self) -> None:
-        assert hasattr(SwaptionPricing, "_is_runtime_protocol")
-
     def test_currency_analogy(self) -> None:
         assert hasattr(CurrencyAnalogy, "_is_runtime_protocol")
 
@@ -54,9 +45,6 @@ class TestProtocolsAreRuntimeCheckable:
 
     def test_credit_model(self) -> None:
         assert hasattr(CreditModel, "_is_runtime_protocol")
-
-    def test_portfolio_model(self) -> None:
-        assert hasattr(PortfolioModel, "_is_runtime_protocol")
 
     def test_stochastic_process(self) -> None:
         assert hasattr(StochasticProcess, "_is_runtime_protocol")

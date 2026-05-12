@@ -151,6 +151,10 @@ class PolynomialBlend(ParametricCurve):
     ) -> None:
         if t_end <= t_start:
             raise ValueError("t_end must be greater than t_start")
+        if degree not in (3, 5):
+            raise ValueError(
+                f"Unsupported smoothstep degree {degree}; must be 3 or 5"
+            )
         self._f = f
         self._g = g
         self._t_start = t_start
@@ -165,6 +169,9 @@ class PolynomialBlend(ParametricCurve):
 
         Returns:
             Smooth weight in [0, 1].
+
+        Raises:
+            ValueError: If degree is not 3 or 5.
         """
         t = max(0.0, min(1.0, t))
         if self._degree == 3:
@@ -173,8 +180,9 @@ class PolynomialBlend(ParametricCurve):
         if self._degree == 5:
             # Quintic: 6t⁵ - 15t⁴ + 10t³
             return t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
-        # Fallback to cubic
-        return t * t * (3.0 - 2.0 * t)
+        raise ValueError(
+            f"Unsupported smoothstep degree {self._degree}; must be 3 or 5"
+        )
 
     def evaluate(self, x: float) -> float:
         """Evaluate the smoothly blended curve at x.

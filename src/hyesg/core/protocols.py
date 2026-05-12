@@ -67,45 +67,6 @@ class ShortRateModel(Model, Protocol):
 
 
 @runtime_checkable
-class BondOptionPricing(Protocol):
-    """Analytic bond option pricing."""
-
-    def zcb_call(
-        self,
-        state: Any,
-        t: float,
-        T: float,
-        S: float,
-        K: float,
-    ) -> Float[Array, ""]: ...
-
-    def zcb_put(
-        self,
-        state: Any,
-        t: float,
-        T: float,
-        S: float,
-        K: float,
-    ) -> Float[Array, ""]: ...
-
-
-@runtime_checkable
-class SwaptionPricing(Protocol):
-    """Swaption pricing."""
-
-    def swaption_price(
-        self,
-        state: Any,
-        t: float,
-        T: float,
-        tenor: float,
-        K: float,
-        freq: float,
-        is_payer: bool,
-    ) -> Float[Array, ""]: ...
-
-
-@runtime_checkable
 class CurrencyAnalogy(Model, Protocol):
     """Foreign Currency Analogy model.
 
@@ -120,10 +81,12 @@ class CurrencyAnalogy(Model, Protocol):
 
 @runtime_checkable
 class ExchangeRateModel(Model, Protocol):
-    """FX / inflation exchange rate."""
+    """FX / inflation exchange rate.
 
-    def level(self, state: Any, t: float) -> Float[Array, ""]: ...
-    def log_return(self, state: Any, t: float, dt: float) -> Float[Array, ""]: ...
+    Level and log-return are exposed via the step() outputs dict
+    (keys ``"level"`` and ``"log_return"``).  No additional methods
+    beyond ``Model`` are required.
+    """
 
 
 @runtime_checkable
@@ -135,14 +98,6 @@ class CreditModel(Model, Protocol):
         self, state: Any, t: float, T: float
     ) -> Float[Array, ""]: ...
     def has_defaulted(self, state: Any) -> Float[Array, ""]: ...
-
-
-@runtime_checkable
-class PortfolioModel(Model, Protocol):
-    """Portfolio with rebalancing."""
-
-    def value(self, state: Any, t: float) -> Float[Array, ""]: ...
-    def income(self, state: Any, t: float, dt: float) -> Float[Array, ""]: ...
 
 
 @runtime_checkable

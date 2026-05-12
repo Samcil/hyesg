@@ -69,16 +69,19 @@ class BondIssuer:
         self.recovery_strategy = recovery_strategy
         self.is_master = is_master
 
-    def init_state(self, key: Array) -> IssuerState:
+    def init_state(self, key: Array | None = None) -> IssuerState:
         """Initialise issuer state with a random uniform threshold.
 
         Args:
             key: JAX PRNG key for drawing the uniform threshold.
+                If None, a default key is created internally.
 
         Returns:
             Initial ``IssuerState`` with zero cumulative intensity,
             survival = 1, and no default.
         """
+        if key is None:
+            key = jax.random.PRNGKey(0)
         threshold = jax.random.uniform(key, dtype=jnp.float64)
         return IssuerState(
             cum_intensity=jnp.array(0.0, dtype=jnp.float64),

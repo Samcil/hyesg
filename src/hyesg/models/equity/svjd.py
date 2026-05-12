@@ -17,11 +17,13 @@ Composition over inheritance: SVJD is assembled from protocols.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, NamedTuple, Protocol, runtime_checkable
 
 import jax.numpy as jnp
 
 from hyesg.core.types import FXState, JumpState, ShockConfig, VolState
+from hyesg.math.cir_formulas import cir_euler_step
+from hyesg.outputs import OutputName
 from hyesg.math.jump_utils import jump_adjusted_sigma
 
 
@@ -145,12 +147,7 @@ class CIRVolAdapter:
         current_sigma = state.volatility
 
         # CIR Euler step with floored diffusion
-        v_floor = jnp.maximum(v, 0.0)
-        drift = self._alpha * (self._mu - v) * dt
-        diffusion = self._sigma * jnp.sqrt(v_floor * dt) * dW
-        v_new = v + drift + diffusion
-
-        v_floor_new = jnp.maximum(v_new, 0.0)
+        v_new, v_floor_new = cir_euler_step(v, self._alpha, self._mu, self._sigma, dt, dW)
         vol_new = jnp.sqrt(v_floor_new)
 
         new_state = VolState(variance=v_new, volatility=vol_new)
@@ -384,10 +381,10 @@ def svjd_equity_step(
     )
 
     outputs = {
-        "log_return": log_new - log_price,
-        "volatility": sigma_t,
-        "jump": jump_size,
-        "drift_adjustment": drift_adj,
+        OutputName.LOG_RETURN: log_new - log_price,
+        OutputName.SIGMA: sigma_t,
+        OutputName.JUMP: jump_size,
+        OutputName.DRIFT_ADJUSTMENT: drift_adj,
     }
 
     return log_new, new_vol_state, new_jump_state, outputs
@@ -396,7 +393,7 @@ def svjd_equity_step(
 # ── SVJDEquity Model Class ───────────────────────────────────────────────
 
 
-class SVJDEquityState:
+class SVJDEquityState(NamedTuple):
     """Composite state for the SVJD equity model.
 
     Bundles FXState, VolState, and JumpState into a single pytree-
@@ -408,17 +405,9 @@ class SVJDEquityState:
         jump_state: Jump accumulator state.
     """
 
-    __slots__ = ("price_state", "vol_state", "jump_state")
-
-    def __init__(
-        self,
-        price_state: FXState,
-        vol_state: VolState,
-        jump_state: JumpState,
-    ) -> None:
-        self.price_state = price_state
-        self.vol_state = vol_state
-        self.jump_state = jump_state
+    price_state: FXState
+    vol_state: VolState
+    jump_state: JumpState
 
 
 class SVJDEquity:
@@ -575,8 +564,8 @@ class SVJDEquity:
         # Extract short rate from deps
         r = jnp.array(0.0, dtype=jnp.float64)
         for dep_out in deps.values():
-            if isinstance(dep_out, dict) and "short_rate" in dep_out:
-                r = dep_out["short_rate"]
+            if isinstance(dep_out, dict) and OutputName.SHORT_RATE in dep_out:
+                r = dep_out[OutputName.SHORT_RATE]
                 break
 
         q = jnp.array(self._dividend_yield, dtype=jnp.float64)
@@ -607,11 +596,11 @@ class SVJDEquity:
         }
 
         outputs = {
-            "level": level,
-            "log_return": step_outputs["log_return"],
-            "volatility": step_outputs["volatility"],
-            "jump": step_outputs["jump"],
-            "drift_adjustment": step_outputs["drift_adjustment"],
+            OutputName.TOTAL_RETURN_INDEX: level,
+            OutputName.LOG_RETURN: step_outputs[OutputName.LOG_RETURN],
+            OutputName.SIGMA: step_outputs[OutputName.SIGMA],
+            OutputName.JUMP: step_outputs[OutputName.JUMP],
+            OutputName.DRIFT_ADJUSTMENT: step_outputs[OutputName.DRIFT_ADJUSTMENT],
         }
 
         return new_state, outputs

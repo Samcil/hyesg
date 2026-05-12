@@ -20,7 +20,9 @@ from typing import NamedTuple
 import jax.numpy as jnp
 from jax import Array
 
+from hyesg.core.registry import register_model
 from hyesg.math.curves.protocol import ParametricCurve
+from hyesg.outputs import OutputName
 
 
 class SalaryWedgeState(NamedTuple):
@@ -54,6 +56,7 @@ class SalaryWedgeParams(NamedTuple):
     initial_x2: float = 0.0
 
 
+@register_model("salary_wedge")
 class SalaryWedgeModel:
     """Salary growth modelled as G2++ with two OU factors.
 
@@ -160,6 +163,6 @@ class SalaryWedgeModel:
             Dictionary with 'salary_rate' and 'salary_index' keys.
         """
         return {
-            "salary_rate": state.salary_rate,
-            "salary_index": state.salary_index,
+            OutputName.SALARY_RATE: state.salary_rate,
+            OutputName.SALARY_INDEX: state.salary_index,
         }
