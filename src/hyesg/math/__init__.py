@@ -19,6 +19,7 @@ from hyesg.math.gaussian_helpers import (
     b_over_dt,
     variance_integral_ou,
 )
+from hyesg.math.quadrature import gauss_kronrod_integrate
 from hyesg.math.pricing import (
     black_call,
     black_implied_vol,
@@ -54,6 +55,8 @@ __all__ = [
     "cir_phi_from_curves",
     "cir_variance",
     "cir_zcb_price",
+    # Quadrature
+    "gauss_kronrod_integrate",
     # Gaussian helpers
     "b_func",
     "b_over_dt",
