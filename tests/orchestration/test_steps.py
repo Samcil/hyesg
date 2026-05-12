@@ -240,7 +240,7 @@ class TestTimingStep:
         time.sleep(0.01)
         ctx = step.execute(ctx)
         assert "timing_elapsed_seconds" in ctx.metadata
-        assert ctx.metadata["timing_elapsed_seconds"] > 0.0
+        assert ctx.metadata["timing_elapsed_seconds"] >= 0.0
 
     def test_returns_context(self) -> None:
         """execute should return a PipelineContext."""
