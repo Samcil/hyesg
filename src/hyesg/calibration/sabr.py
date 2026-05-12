@@ -100,36 +100,31 @@ def nelson_siegel_tanh(
     beta0: float,
     beta1: float,
     beta2: float,
-    tau: float,
+    lam: float,
 ) -> Array:
-    """Nelson-Siegel form wrapped in tanh for bounded parameters.
+    """C# exponential-polynomial Nelson-Siegel form wrapped in tanh.
 
-    f(t) = tanh(beta0 + beta1 * factor1 + beta2 * factor2)
+    f(t) = tanh(β₀ + (β₁ + β₂·t) · exp(-λ·t))
 
-    where factor1 = (1 - exp(-t/tau)) / (t/tau)  (level/slope)
-    and   factor2 = factor1 - exp(-t/tau)          (curvature)
+    This matches ``NelsonSiegelParametricCurve.cs``, which uses
+    the exponential-polynomial form (not textbook Nelson-Siegel).
 
-    The tanh wrapper ensures the output is bounded in [-1, 1],
+    The tanh wrapper ensures the output is bounded in (-1, 1),
     which is useful for constraining parameters like rho.
 
     Args:
-        t: Time point to evaluate.
+        t: Time point to evaluate (maturity in years).
         beta0: Level parameter.
-        beta1: Slope parameter.
-        beta2: Curvature parameter.
-        tau: Decay factor controlling the shape.
+        beta1: Short-term component.
+        beta2: Slope component.
+        lam: Exponential decay rate (lambda).
 
     Returns:
-        Bounded parameter value in [-1, 1].
+        Bounded parameter value in (-1, 1).
     """
     t = jnp.asarray(t, dtype=jnp.float64)
-    x = t / tau
-    safe_x = jnp.where(x > 1e-10, x, 1.0)
-    factor1 = (1.0 - jnp.exp(-safe_x)) / safe_x
-    # At x = 0, factor1 → 1 by L'Hopital
-    factor1 = jnp.where(x > 1e-10, factor1, 1.0)
-    factor2 = factor1 - jnp.exp(-x)
-    return jnp.tanh(beta0 + beta1 * factor1 + beta2 * factor2)
+    ns = beta0 + (beta1 + beta2 * t) * jnp.exp(-lam * t)
+    return jnp.tanh(ns)
 
 
 class SabrCalibrator:

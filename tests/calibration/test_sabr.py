@@ -115,10 +115,10 @@ class TestSabrImpliedVolHagan:
 
 
 class TestNelsonSiegelTanh:
-    """Tests for the Nelson-Siegel tanh bounded function."""
+    """Tests for the C# exponential-polynomial Nelson-Siegel tanh function."""
 
     def test_output_bounded(self) -> None:
-        """Output should be in [-1, 1] for any input."""
+        """Output should be in (-1, 1) for any input."""
         for b0 in [-2.0, 0.0, 2.0]:
             for b1 in [-1.0, 0.0, 1.0]:
                 result = nelson_siegel_tanh(5.0, b0, b1, 0.0, 1.0)
@@ -128,6 +128,12 @@ class TestNelsonSiegelTanh:
         """Bounded even with extreme parameter values."""
         result = nelson_siegel_tanh(10.0, 100.0, 100.0, 100.0, 0.5)
         assert -1.0 <= float(result) <= 1.0
+
+    def test_at_zero_time(self) -> None:
+        """At t=0: tanh(beta0 + beta1) since exp(0)=1, beta2*0=0."""
+        result = nelson_siegel_tanh(0.0, 0.5, 0.3, -0.1, 1.0)
+        expected = jnp.tanh(0.5 + 0.3)  # beta2*0 term vanishes
+        assert float(result) == pytest.approx(float(expected), abs=1e-12)
 
     def test_near_zero_time(self) -> None:
         """Should handle t near zero gracefully."""
@@ -145,6 +151,15 @@ class TestNelsonSiegelTanh:
         """tanh(0) = 0."""
         result = nelson_siegel_tanh(5.0, 0.0, 0.0, 0.0, 1.0)
         assert float(result) == pytest.approx(0.0, abs=1e-10)
+
+    def test_matches_exp_poly_form(self) -> None:
+        """Verify it uses beta0 + (beta1 + beta2*t)*exp(-lam*t)."""
+        import math
+
+        t, b0, b1, b2, lam = 7.0, 0.3, -0.5, 0.1, 0.2
+        expected = math.tanh(b0 + (b1 + b2 * t) * math.exp(-lam * t))
+        result = nelson_siegel_tanh(t, b0, b1, b2, lam)
+        assert float(result) == pytest.approx(expected, abs=1e-12)
 
 
 class TestSabrCalibrator:
