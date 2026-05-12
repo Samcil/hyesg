@@ -117,6 +117,15 @@ class CubicSpline(ParametricCurve):
         dx = x - self._xs[i]
         return self._a[i] + self._b[i] * dx + self._c[i] * dx**2 + self._d[i] * dx**3
 
+    def integral(self, a: float, b: float) -> float:
+        """Exact integral of piecewise cubic over [a, b].
+
+        Handles flat extrapolation outside knot range analytically.
+        """
+        return _piecewise_cubic_integral(
+            self._xs, self._ys, self._a, self._b, self._c, self._d, a, b
+        )
+
 
 class AkimaCubicSpline(ParametricCurve):
     """Akima's modified cubic spline interpolation.
@@ -226,3 +235,109 @@ class AkimaCubicSpline(ParametricCurve):
         i = self._find_interval(x)
         dx = x - self._xs[i]
         return self._ys[i] + self._b[i] * dx + self._c[i] * dx**2 + self._d[i] * dx**3
+
+    def integral(self, a: float, b: float) -> float:
+        """Exact integral of piecewise cubic over [a, b].
+
+        Handles flat extrapolation outside knot range analytically.
+        """
+        return _piecewise_cubic_integral(
+            self._xs, self._ys, self._ys, self._b, self._c, self._d, a, b
+        )
+
+
+def _segment_integral(a_coeff: float, b_coeff: float, c_coeff: float,
+                       d_coeff: float, dx: float) -> float:
+    """Antiderivative of a + b·t + c·t² + d·t³ evaluated at t=dx."""
+    return a_coeff * dx + b_coeff * dx**2 / 2 + c_coeff * dx**3 / 3 + d_coeff * dx**4 / 4
+
+
+def _piecewise_cubic_integral(
+    xs: list[float],
+    ys: list[float],
+    a_coeffs: list[float],
+    b_coeffs: list[float],
+    c_coeffs: list[float],
+    d_coeffs: list[float],
+    lower: float,
+    upper: float,
+) -> float:
+    """Exact integral of a piecewise cubic spline with flat extrapolation.
+
+    The spline is f(x) = a[i] + b[i]·dx + c[i]·dx² + d[i]·dx³
+    on each interval [xs[i], xs[i+1]], with flat extrapolation outside
+    [xs[0], xs[-1]].
+
+    Args:
+        xs: Knot positions.
+        ys: Values at knots (for flat extrapolation).
+        a_coeffs: Constant coefficients per interval.
+        b_coeffs: Linear coefficients per interval.
+        c_coeffs: Quadratic coefficients per interval.
+        d_coeffs: Cubic coefficients per interval.
+        lower: Lower integration bound.
+        upper: Upper integration bound.
+
+    Returns:
+        Exact value of ∫_lower^upper f(x) dx.
+    """
+    if upper < lower:
+        return -_piecewise_cubic_integral(
+            xs, ys, a_coeffs, b_coeffs, c_coeffs, d_coeffs, upper, lower
+        )
+    if upper == lower:
+        return 0.0
+
+    n = len(xs)
+    x_lo = xs[0]
+    x_hi = xs[-1]
+    result = 0.0
+
+    # Left flat extrapolation region: f(x) = ys[0] for x < xs[0]
+    if lower < x_lo:
+        right = min(upper, x_lo)
+        result += ys[0] * (right - lower)
+        if upper <= x_lo:
+            return result
+        lower = x_lo
+
+    # Right flat extrapolation region: f(x) = ys[-1] for x > xs[-1]
+    if upper > x_hi:
+        left = max(lower, x_hi)
+        result += ys[-1] * (upper - left)
+        if lower >= x_hi:
+            return result
+        upper = x_hi
+
+    # Interior: integrate over spline segments
+    # Find starting segment
+    i_start = 0
+    for i in range(n - 2):
+        if lower < xs[i + 1]:
+            i_start = i
+            break
+    else:
+        i_start = n - 2
+
+    for i in range(i_start, n - 1):
+        seg_lo = xs[i]
+        seg_hi = xs[i + 1]
+
+        # Clip to [lower, upper]
+        lo = max(lower, seg_lo)
+        hi = min(upper, seg_hi)
+        if lo >= hi:
+            continue
+
+        # Integrate a[i] + b[i]·(x-xs[i]) + c[i]·(x-xs[i])² + d[i]·(x-xs[i])³
+        dx_lo = lo - seg_lo
+        dx_hi = hi - seg_lo
+        result += (
+            _segment_integral(a_coeffs[i], b_coeffs[i], c_coeffs[i], d_coeffs[i], dx_hi)
+            - _segment_integral(a_coeffs[i], b_coeffs[i], c_coeffs[i], d_coeffs[i], dx_lo)
+        )
+
+        if hi >= upper:
+            break
+
+    return result

@@ -31,13 +31,23 @@ from hyesg.calibration.sabr import (
     nelson_siegel_tanh,
     sabr_implied_vol_hagan,
 )
+from hyesg.calibration.yield_curve_config import (
+    LongEndExtensionConfig,
+    RpiReformConfig,
+    YieldCurvePipelineConfig,
+)
+from hyesg.calibration.yield_curve_model import InitialYieldCurveModel
 from hyesg.calibration.yield_curves import (
     YIELD_CURVE_KNOTS,
+    PowerBlend,
     YieldCurveCalibrationResult,
+    breakeven_cpi_forward_curve,
     build_akima_yield_curve,
+    build_forward_rate_curve,
     build_real_yield_curve,
     calibrate_yield_curve,
     fisher_real_rate,
+    reform_adjusted_forward_curve,
 )
 
 __all__ = [
@@ -63,13 +73,23 @@ __all__ = [
     "ou_zcb_price",
     # Calibrator
     "Calibrator",
-    # Yield Curves
+    # Yield Curves — pipeline
     "YIELD_CURVE_KNOTS",
     "YieldCurveCalibrationResult",
     "build_akima_yield_curve",
+    "build_forward_rate_curve",
     "build_real_yield_curve",
     "calibrate_yield_curve",
     "fisher_real_rate",
+    # Yield Curves — RPI reform / CPI
+    "PowerBlend",
+    "breakeven_cpi_forward_curve",
+    "reform_adjusted_forward_curve",
+    # Yield Curves — config and model
+    "InitialYieldCurveModel",
+    "LongEndExtensionConfig",
+    "RpiReformConfig",
+    "YieldCurvePipelineConfig",
     # SABR calibration
     "SabrCalibrator",
     "SabrTermStructure",
