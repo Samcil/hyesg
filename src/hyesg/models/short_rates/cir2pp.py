@@ -21,6 +21,7 @@ ZCB pricing uses the FROM TIME 0 formulation:
 from __future__ import annotations
 
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import jax
@@ -456,3 +457,51 @@ class CIR2PlusPlus:
         """
         params = self._params1 if factor == 1 else self._params2
         return cir_B(tau, params.alpha, params.sigma)
+
+
+# ---------------------------------------------------------------------------
+# Standalone phi computation via central differences
+# ---------------------------------------------------------------------------
+
+
+def compute_phi_central_differences(
+    market_curve: ParametricCurve,
+    params1: CIRParams,
+    params2: CIRParams,
+    h: float = 1e-4,
+) -> Callable[[float], jnp.ndarray]:
+    """Compute φ(t) using central differences on the market ZCB curve.
+
+    This is an alternative to the analytic phi that avoids requiring a
+    closed-form forward rate for the market curve. The instantaneous
+    forward rate is approximated by central differences on the log ZCB
+    price curve:
+
+        f(0, t) ≈ -(ln P(0, t+h) - ln P(0, t-h)) / (2h)
+
+    Then φ(t) = f_market(0,t) - f_CIR1(0,t) - f_CIR2(0,t), clamped
+    to be non-negative.
+
+    Args:
+        market_curve: The market forward rate curve (ParametricCurve).
+        params1: CIR parameters for factor 1.
+        params2: CIR parameters for factor 2.
+        h: Half-width for central difference step (default 1e-4).
+
+    Returns:
+        A callable f(t) -> jnp.ndarray that evaluates φ at time t.
+    """
+    zcb_curve = forward_to_zcbp(market_curve)
+
+    def _phi(t: float) -> jnp.ndarray:
+        t = jnp.asarray(t, dtype=jnp.float64)
+        ln_p_plus = jnp.log(jnp.maximum(zcb_curve(t + h), 1e-30))
+        ln_p_minus = jnp.log(jnp.maximum(zcb_curve(jnp.maximum(t - h, 0.0)), 1e-30))
+        f_market = -(ln_p_plus - ln_p_minus) / (2.0 * h)
+
+        f1 = cir_forward_rate(t, params1.alpha, params1.mu, params1.sigma, params1.initial_value)
+        f2 = cir_forward_rate(t, params2.alpha, params2.mu, params2.sigma, params2.initial_value)
+
+        return jnp.maximum(f_market - f1 - f2, 0.0)
+
+    return _phi
