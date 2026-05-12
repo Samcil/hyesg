@@ -10,6 +10,8 @@ jax.config.update("jax_enable_x64", True)
 
 from hyesg.engine.copula import chi_squared_sample, student_t_sample
 
+pytestmark = pytest.mark.slow
+
 
 # ---------------------------------------------------------------------------
 # Chi-squared sampling

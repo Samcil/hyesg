@@ -62,6 +62,9 @@ known-first-party = ["hyesg"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra -q --tb=short"
+markers = [
+    "slow: marks tests as slow / compute-heavy (deselect with 'pytest -m \"not slow\"', include with '--run-slow')",
+]
 
 [tool.mypy]
 python_version = "3.11"
